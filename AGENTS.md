@@ -34,3 +34,32 @@ The Docker image built by GitHub Actions is designed to be **portable and generi
 *   **Vite environment variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)** are compiled at build time using static placeholder strings.
 *   At runtime, `entrypoint.sh` dynamically replaces these placeholders in the compiled frontend bundle with the actual keys provided in the container environment.
 *   **Never** bake actual production API keys or credentials directly into the Dockerfile or repository code. Use Compose environment injection instead.
+
+---
+
+## 🔄 Syncing with Upstream
+
+We track the official CADAM repository (`https://github.com/Adam-CAD/CADAM`) as the `upstream` remote.
+
+### How to Merge Upstream Updates:
+1.  **Fetch the latest changes**:
+    ```bash
+    git fetch upstream
+    ```
+2.  **Merge upstream's main branch** (upstream uses `master` as its main branch):
+    ```bash
+    git merge upstream/master --no-commit
+    ```
+    *Note: Using `--no-commit` lets you inspect the changes and handle any configuration files before completing the merge.*
+3.  **Resolve Conflicts (if any)**:
+    - Ensure your custom containerization files (`Dockerfile`, `entrypoint.sh`, `.github/workflows/`, and `AGENTS.md`) remain untouched.
+    - If `package.json` or `vite.config.ts` has conflicts, resolve them so that the custom build configurations (such as build-time ARGs and TanStack base paths) are preserved.
+4.  **Commit and push the merge**:
+    - Commit the merge:
+      ```bash
+      git commit -m "merge: sync upstream updates"
+      ```
+    - Push to your repo to trigger the automated build:
+      ```bash
+      git push origin main
+      ```
