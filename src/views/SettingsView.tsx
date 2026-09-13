@@ -193,7 +193,7 @@ export default function SettingsView() {
                     </span>
                   </div>
                   <div className="mt-0.5 truncate text-xs text-adam-neutral-200">
-                    {DEFAULT_SSO_PROVIDER_URL}
+                    {ssoAccountUrl}
                   </div>
                 </div>
                 <a
