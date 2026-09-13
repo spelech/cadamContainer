@@ -26,7 +26,7 @@ import imageType from 'image-type';
 import { z } from 'zod';
 import { billing, BillingClientError } from './billingClient';
 import { corsHeaders, isRecord } from './api';
-import { env, requiredEnv } from './env';
+import { env } from './env';
 import { logError } from './serverLog';
 import {
   decidePersistAction,
@@ -35,7 +35,8 @@ import {
   resolveDanglingToolParts,
 } from './chatToolPersistence';
 import { handleMeshRequest } from './mesh';
-import { getAnonSupabaseClient } from './supabaseClient';
+import { getSessionUser } from './auth';
+import { query } from './db';
 
 /**
  * USD list price per **million** tokens, keyed by the same model IDs the
@@ -53,7 +54,15 @@ const MODEL_PRICES: Record<
   { input: number; output: number; cacheRead?: number; cacheWrite?: number }
 > = {
   // Anthropic
-  'anthropic/claude-fable-5': { input: 10, output: 50 },
+  // Fable 5.1 cache reads bill at 0.025x input ($0.25/M), not the 0.1x
+  // default applied below, so they are listed explicitly; 5-min cache
+  // writes stay at the standard 1.25x.
+  'anthropic/claude-fable-5.1': {
+    input: 10,
+    output: 50,
+    cacheRead: 0.25,
+    cacheWrite: 12.5,
+  },
   'anthropic/claude-opus-4.8': { input: 5, output: 25 },
   'anthropic/claude-sonnet-5': { input: 2, output: 10 },
   'anthropic/claude-opus-4': { input: 15, output: 75 },
@@ -62,7 +71,7 @@ const MODEL_PRICES: Record<
   'anthropic/claude-haiku-4.5': { input: 1, output: 5 },
 
   // Google — cached content reads bill at a fraction of input price
-  // (~25% for 3.1 Pro, 10% for 3.6 Flash); there is no cache-write
+  // (~25% for 3.1 Pro, 10% for 3.8 Flash); there is no cache-write
   // surcharge (cache storage is billed per-hour, which we don't track
   // here).
   'google/gemini-3.1-pro-preview': {
@@ -71,11 +80,13 @@ const MODEL_PRICES: Record<
     cacheRead: 0.31,
     cacheWrite: 1.25,
   },
-  'google/gemini-3.6-flash': {
-    input: 1.5,
-    output: 7.5,
-    cacheRead: 0.15,
-    cacheWrite: 1.5,
+  // 3.8 Flash rates are Google's introductory pricing through Dec 31,
+  // 2026; they double on Jan 1, 2027 (to 1.5 / 7.5 / 0.15).
+  'google/gemini-3.8-flash': {
+    input: 0.75,
+    output: 3.75,
+    cacheRead: 0.075,
+    cacheWrite: 0.75,
   },
 
   // OpenAI — prompt-cache reads at 10% of input, cache writes at 1.25x.
@@ -87,14 +98,38 @@ const MODEL_PRICES: Record<
   },
 
   // xAI — cached input reads at 25% of input; no cache-write surcharge.
-  'x-ai/grok-4.5': { input: 2, output: 6, cacheRead: 0.5, cacheWrite: 2 },
+  'x-ai/grok-4.6': { input: 2, output: 6, cacheRead: 0.5, cacheWrite: 2 },
 
   // MoonshotAI — cached input reads at 10% of input; no cache-write surcharge.
   'moonshotai/kimi-k2.6': { input: 0.6, output: 2.5 },
   'moonshotai/kimi-k3': { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3 },
 
-  // Z.AI
-  'z-ai/glm-5.2': { input: 1.2, output: 4.1 },
+  // DeepSeek — cached input reads at $0.003625/M (per OpenRouter); no
+  // cache-write surcharge.
+  'deepseek/deepseek-v4-pro-0813': {
+    input: 0.435,
+    output: 0.87,
+    cacheRead: 0.003625,
+    cacheWrite: 0.435,
+  },
+
+  // Qwen — retired from the picker, kept so persisted conversations that
+  // still submit this id bill at real rates instead of FALLBACK_MODEL_PRICE.
+  // Cached input reads at 12.5% of input; cache writes at 1.25x.
+  'qwen/qwen3.8-max': { input: 2, output: 6, cacheRead: 0.25, cacheWrite: 2.5 },
+
+  // Z.AI — cached input reads at $0.26/M (per OpenRouter); no cache-write
+  // surcharge.
+  'z-ai/glm-5.3': { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 1.4 },
+  // 5.3 Flash is billed at its undiscounted base rate: OpenRouter runs a
+  // limited-time 50% ZAI promo (0.075 / 0.25 / 0.015) through Sep 9, 2026,
+  // but it also routes to non-discounted endpoints at these full rates.
+  'z-ai/glm-5.3-flash': {
+    input: 0.15,
+    output: 0.5,
+    cacheRead: 0.03,
+    cacheWrite: 0.15,
+  },
 };
 
 const FALLBACK_MODEL_PRICE = { input: 15, output: 75 };
@@ -166,9 +201,10 @@ Geometry:
 - Use modules for repeated or meaningful model parts.
 
 BOSL2 library guidance:
-- BOSL2 is available to OpenSCAD code when the generated source includes the
-  literal token \`BOSL2\`. Include \`<BOSL2/std.scad>\` plus the specific module
-  file whenever the request needs a higher-level CAD primitive.
+- BOSL2 is available to OpenSCAD code when the generated source contains an
+  \`include <BOSL2/...>\` or \`use <BOSL2/...>\` statement. Include
+  \`<BOSL2/std.scad>\` plus the specific module file whenever the request needs
+  a higher-level CAD primitive.
 - For screws, bolts, nuts, threaded rods, or tapped/threaded holes, use BOSL2
   instead of trying to build threads from \`cylinder()\`, \`linear_extrude()\`,
   or hand-rolled helices. Include \`<BOSL2/screws.scad>\` for \`screw()\`,
@@ -326,12 +362,29 @@ function jsonResponse(body: unknown, status: number) {
 const THINKING_BUDGET_TOKENS = 9000;
 const PARAMETRIC_MAX_OUTPUT_TOKENS = 64000;
 
+function hasValidApiKey(keyName: string): boolean {
+  const val = env(keyName)?.trim();
+  return Boolean(val && !val.startsWith('your_') && !val.includes('placeholder'));
+}
+
 type ChatProvider = 'anthropic' | 'google' | 'openrouter';
 
 function providerFor(modelId: string): ChatProvider {
-  if (modelId.startsWith('anthropic/')) return 'anthropic';
-  if (modelId.startsWith('google/')) return 'google';
+  // If OPENROUTER_BASE_URL is set (pointing to LiteLLM), or direct keys are missing/placeholders,
+  // route all models through the openrouter/LiteLLM gateway!
+  if (env('OPENROUTER_BASE_URL')) {
+    return 'openrouter';
+  }
+  if (modelId.startsWith('anthropic/') && hasValidApiKey('ANTHROPIC_API_KEY')) return 'anthropic';
+  if (modelId.startsWith('google/') && hasValidApiKey('GOOGLE_API_KEY')) return 'google';
   return 'openrouter';
+}
+
+function normalizeGatewayModelId(modelId: string): string {
+  if (modelId === 'google/gemini-3.8-flash') return 'openrouter/gemini-3.8-flash';
+  if (modelId === 'z-ai/glm-5.3-flash') return 'glm-5.3-flash';
+  if (modelId === 'z-ai/glm-5.3') return 'glm-5.3';
+  return modelId;
 }
 
 type AnthropicProvider = ReturnType<typeof createAnthropic>;
@@ -366,7 +419,7 @@ function createChatProviders(): ChatProviders {
       if (!anthropic) {
         const baseURL = normalizedAnthropicBaseURL();
         anthropic = createAnthropic({
-          apiKey: requiredEnv('ANTHROPIC_API_KEY'),
+          apiKey: env('ANTHROPIC_API_KEY') || 'missing-anthropic-key',
           ...(baseURL ? { baseURL } : {}),
         });
       }
@@ -374,18 +427,34 @@ function createChatProviders(): ChatProviders {
     },
     google: () => {
       google ??= createGoogleGenerativeAI({
-        apiKey: requiredEnv('GOOGLE_API_KEY'),
+        apiKey: env('GOOGLE_API_KEY') || 'missing-google-key',
       });
       return google;
     },
     openrouter: () => {
       openrouter ??= createOpenRouter({
-        apiKey: requiredEnv('OPENROUTER_API_KEY'),
+        apiKey: env('OPENROUTER_API_KEY') || 'missing-openrouter-key',
         baseURL: env('OPENROUTER_BASE_URL') || undefined,
       });
       return openrouter;
     },
   };
+}
+
+function canGenerateAuxiliaryContent(): boolean {
+  return (
+    hasValidApiKey('ANTHROPIC_API_KEY') ||
+    Boolean(env('OPENROUTER_BASE_URL')) ||
+    hasValidApiKey('OPENROUTER_API_KEY')
+  );
+}
+
+function getAuxiliaryModel(providers: ChatProviders): LanguageModel {
+  if (hasValidApiKey('ANTHROPIC_API_KEY') && !env('OPENROUTER_BASE_URL')) {
+    return providers.anthropic()('claude-haiku-4-5');
+  }
+  const modelName = env('OPENROUTER_BASE_URL') ? 'glm-5.3-flash' : 'openrouter/gemini-3.8-flash';
+  return providers.openrouter().chat(modelName);
 }
 
 /**
@@ -406,8 +475,9 @@ function buildChatModel(
     thinking && thinkingBudget !== THINKING_BUDGET_TOKENS;
 
   if (providerFor(modelId) === 'openrouter') {
+    const gatewayModel = normalizeGatewayModelId(modelId);
     return {
-      model: providers.openrouter().chat(modelId, {
+      model: providers.openrouter().chat(gatewayModel, {
         ...(thinking ? { reasoning: { max_tokens: thinkingBudget } } : {}),
         usage: { include: true },
       }),
@@ -565,8 +635,6 @@ function billingTokensFromUsage(
   return Math.max(1, Math.ceil(usdCost / USD_PER_BILLING_TOKEN));
 }
 
-type SupabaseAnon = ReturnType<typeof getAnonSupabaseClient>;
-
 type BranchMessageRow = Pick<
   Message,
   'id' | 'role' | 'parts' | 'metadata' | 'parent_message_id'
@@ -675,23 +743,36 @@ function messageRowToUIMessage(
  * the server (mirrors the same defense in shared/Tree.ts on the client).
  */
 async function loadBranchFromDb({
-  supabaseClient,
   conversationId,
   leafId,
 }: {
-  supabaseClient: SupabaseAnon;
   conversationId: string;
   leafId: string;
 }): Promise<{ branch: AppUIMessage[]; leafRole: 'user' | 'assistant' }> {
-  const { data: rows, error } = await supabaseClient
-    .from('messages')
-    .select('id, role, parts, metadata, parent_message_id')
-    .eq('conversation_id', conversationId)
-    .overrideTypes<BranchMessageRow[]>();
+  const result = await query<BranchMessageRow>(
+    `SELECT id, role, parts, metadata, COALESCE(parent_message_id, parent_id) as parent_message_id
+     FROM messages
+     WHERE conversation_id = $1`,
+    [conversationId],
+  );
 
-  if (error || !rows) {
-    throw new Error('Failed to load conversation messages');
-  }
+  const rows: BranchMessageRow[] = result.rows.map((row) => ({
+    id: row.id,
+    role: row.role,
+    parent_message_id: row.parent_message_id,
+    parts:
+      typeof row.parts === 'string'
+        ? JSON.parse(row.parts)
+        : Array.isArray(row.parts)
+          ? row.parts
+          : [],
+    metadata:
+      typeof row.metadata === 'string'
+        ? JSON.parse(row.metadata)
+        : row.metadata && typeof row.metadata === 'object'
+          ? row.metadata
+          : {},
+  }));
 
   const byId = new Map<string, BranchMessageRow>();
   for (const row of rows) byId.set(row.id, row);
@@ -730,16 +811,16 @@ async function loadBranchFromDb({
 }
 
 async function generateConversationTitle({
-  anthropic,
+  model,
   firstMessage,
 }: {
-  anthropic: AnthropicProvider;
+  model: LanguageModel;
   firstMessage: AppUIMessage;
 }) {
   const text = getParametricText(firstMessage.parts) || 'New conversation';
   try {
     const result = await generateText({
-      model: anthropic('claude-haiku-4-5'),
+      model,
       system:
         'Generate a short title for a 3D creation conversation. Return only the title.',
       prompt: text,
@@ -762,11 +843,11 @@ async function generateConversationTitle({
  * specific assistant turn.
  */
 async function generateConversationSuggestions({
-  anthropic,
+  model,
   branch,
   conversationType,
 }: {
-  anthropic: AnthropicProvider;
+  model: LanguageModel;
   branch: AppUIMessage[];
   conversationType: 'parametric' | 'creative';
 }): Promise<string[]> {
@@ -784,7 +865,7 @@ async function generateConversationSuggestions({
   const summary = `User request: ${firstUserText.slice(0, 400)}\n\nMost recent assistant reply: ${lastAssistantText.slice(0, 400)}`;
   try {
     const result = await generateText({
-      model: anthropic('claude-haiku-4-5'),
+      model,
       system:
         conversationType === 'creative'
           ? 'Given a 3D mesh design conversation, return an array of exactly 2 follow-up prompts the user might want to send next. Each prompt is a concise instruction of 3 words or fewer, not a question. Return exactly 2 items — no more, no fewer.'
@@ -885,37 +966,35 @@ async function sniffImageMediaType(bytes: Uint8Array): Promise<string | null> {
 }
 
 async function downloadAsBase64(
-  supabaseClient: SupabaseAnon,
   bucket: string,
   path: string,
 ): Promise<{ base64: string; mediaType: string } | null> {
-  const { data, error } = await supabaseClient.storage
-    .from(bucket)
-    .download(path);
-  if (error || !data) return null;
+  try {
+    const { getAnonSupabaseClient } = await import('./supabaseClient');
+    const supabaseClient = getAnonSupabaseClient();
+    const { data, error } = await supabaseClient.storage
+      .from(bucket)
+      .download(path);
+    if (error || !data) return null;
 
-  const bytes = new Uint8Array(await data.arrayBuffer());
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    binary += String.fromCharCode(...bytes.slice(index, index + chunkSize));
+    const bytes = new Uint8Array(await data.arrayBuffer());
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+      binary += String.fromCharCode(...bytes.slice(index, index + chunkSize));
+    }
+    const mediaType =
+      (await sniffImageMediaType(bytes)) || data.type || 'image/png';
+    return { base64: btoa(binary), mediaType };
+  } catch {
+    return null;
   }
-  // Trust the bytes over the stored content type: the metadata mislabels
-  // JPEG/WebP uploads as PNG, and providers reject a mime/bytes mismatch.
-  // `||` (not `??`) on purpose: a Blob with no Content-Type header reports
-  // `data.type` as `''`, which must fall through to the PNG default rather
-  // than emit an empty media type.
-  const mediaType =
-    (await sniffImageMediaType(bytes)) || data.type || 'image/png';
-  return { base64: btoa(binary), mediaType };
 }
 
 function parametricTools({
   previewPathForToolCall,
-  supabaseClient,
 }: {
   previewPathForToolCall: (toolCallId: string) => string;
-  supabaseClient: SupabaseAnon;
 }) {
   return {
     build_parametric_model: {
@@ -933,7 +1012,6 @@ function parametricTools({
         // didn't land, `downloadAsBase64` returns null and we fall back
         // to text-only — never block the loop on a missing inspection sheet.
         const downloaded = await downloadAsBase64(
-          supabaseClient,
           'images',
           previewPathForToolCall(toolCallId),
         );
@@ -985,14 +1063,7 @@ export async function handleAiChatRequest(req: Request) {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
-  const supabaseClient = getAnonSupabaseClient({
-    global: {
-      headers: { Authorization: req.headers.get('Authorization') ?? '' },
-    },
-  });
-  const {
-    data: { user },
-  } = await supabaseClient.auth.getUser();
+  const user = await getSessionUser(req);
 
   if (!user?.id || !user.email) {
     return jsonResponse({ error: 'Unauthorized' }, 401);
@@ -1003,15 +1074,16 @@ export async function handleAiChatRequest(req: Request) {
     return jsonResponse({ error: 'Invalid request body' }, 400);
   }
 
-  const { data: conversation, error: conversationError } = await supabaseClient
-    .from('conversations')
-    .select('id, type, user_id, current_message_leaf_id')
-    .eq('id', rawBody.conversationId)
-    .eq('user_id', user.id)
-    .single()
-    .overrideTypes<ConversationAccess>();
+  const convResult = await query<ConversationAccess>(
+    `SELECT id, type, user_id, current_message_leaf_id
+     FROM conversations
+     WHERE id = $1 AND user_id = $2
+     LIMIT 1`,
+    [rawBody.conversationId, user.id],
+  );
 
-  if (conversationError || !conversation) {
+  const conversation = convResult.rows[0];
+  if (!conversation) {
     return jsonResponse({ error: 'Conversation not found' }, 404);
   }
 
@@ -1055,7 +1127,6 @@ export async function handleAiChatRequest(req: Request) {
     conversation.type === 'creative'
       ? creativeTools({ conversation, req, model: rawBody.model })
       : parametricTools({
-          supabaseClient,
           previewPathForToolCall: (toolCallId) =>
             `${user.id}/${conversation.id}/inspection-preview-${toolCallId}`,
         });
@@ -1064,7 +1135,6 @@ export async function handleAiChatRequest(req: Request) {
   let leafRole: 'user' | 'assistant';
   try {
     const branchResult = await loadBranchFromDb({
-      supabaseClient,
       conversationId: conversation.id,
       leafId: conversation.current_message_leaf_id,
     });
@@ -1132,7 +1202,6 @@ export async function handleAiChatRequest(req: Request) {
             const imageId = imageIdFromFilename(part.filename);
             if (!imageId) return null;
             const downloaded = await downloadAsBase64(
-              supabaseClient,
               'images',
               imageStoragePath(conversation.user_id, conversation.id, imageId),
             );
@@ -1391,11 +1460,10 @@ export async function handleAiChatRequest(req: Request) {
     execute: async ({ writer }) => {
       // Title (first user turn only) runs in parallel with the model
       // stream — fire-and-forget; the assistant doesn't wait on it.
-      if (isFirstUserTurn && env('ANTHROPIC_API_KEY')) {
+      if (isFirstUserTurn && canGenerateAuxiliaryContent()) {
         void emitConversationTitle({
           writer,
-          anthropic: providers.anthropic(),
-          supabaseClient,
+          model: getAuxiliaryModel(providers),
           conversation,
           firstMessage: branchMessages[0],
         });
@@ -1467,37 +1535,56 @@ export async function handleAiChatRequest(req: Request) {
               isContinuation,
               hasPendingToolCall,
             });
-            let error: { message: string } | null = null;
-            if (persistAction === 'update') {
-              ({ error } = await supabaseClient
-                .from('messages')
-                .update(serializedMessage)
-                .eq('id', responseMessage.id)
-                .eq('conversation_id', conversation.id));
-            } else if (persistAction === 'insert') {
-              ({ error } = await supabaseClient.from('messages').insert({
-                id: responseMessage.id,
-                conversation_id: conversation.id,
-                role: responseMessage.role,
-                ...serializedMessage,
-                parent_message_id: leafMessageId,
-              }));
-            } else {
-              // persistAction === 'skip': the client owns this row's `parts`
-              // (it persists the resolved tool output). Still record this
-              // turn's billing metadata via a metadata-ONLY update — it touches
-              // a different column than the client's `parts` write, and
-              // Postgres re-evaluates concurrent same-row updates, so the
-              // client's parts are never clobbered.
-              ({ error } = await supabaseClient
-                .from('messages')
-                .update({ metadata: serializedMessage.metadata })
-                .eq('id', responseMessage.id)
-                .eq('conversation_id', conversation.id));
-            }
 
-            if (error) {
-              logError(error, {
+            try {
+              if (persistAction === 'update') {
+                await query(
+                  `UPDATE messages
+                   SET parts = $1::jsonb, metadata = $2::jsonb
+                   WHERE id = $3 AND conversation_id = $4`,
+                  [
+                    JSON.stringify(serializedMessage.parts),
+                    JSON.stringify(serializedMessage.metadata),
+                    responseMessage.id,
+                    conversation.id,
+                  ],
+                );
+              } else if (persistAction === 'insert') {
+                await query(
+                  `INSERT INTO messages (id, conversation_id, user_id, role, parts, metadata, parent_message_id, parent_id)
+                   VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $7)
+                   ON CONFLICT (id) DO UPDATE SET
+                     parts = EXCLUDED.parts,
+                     metadata = EXCLUDED.metadata`,
+                  [
+                    responseMessage.id,
+                    conversation.id,
+                    user.id,
+                    responseMessage.role,
+                    JSON.stringify(serializedMessage.parts),
+                    JSON.stringify(serializedMessage.metadata),
+                    leafMessageId,
+                  ],
+                );
+                await query(
+                  `UPDATE conversations SET current_message_leaf_id = $1, updated_at = NOW() WHERE id = $2`,
+                  [responseMessage.id, conversation.id],
+                );
+              } else {
+                // persistAction === 'skip': metadata-only update
+                await query(
+                  `UPDATE messages
+                   SET metadata = $1::jsonb
+                   WHERE id = $2 AND conversation_id = $3`,
+                  [
+                    JSON.stringify(serializedMessage.metadata),
+                    responseMessage.id,
+                    conversation.id,
+                  ],
+                );
+              }
+            } catch (persistError) {
+              logError(persistError, {
                 functionName: 'ai-chat',
                 statusCode: 500,
                 userId: user.id,
@@ -1537,7 +1624,7 @@ export async function handleAiChatRequest(req: Request) {
             // continuation `onFinish` will fire suggestions for the real
             // final state. Avoids a wasted Haiku call AND prevents
             // mid-turn placeholder pills.
-            if (!hasPendingToolCall && env('ANTHROPIC_API_KEY')) {
+            if (!hasPendingToolCall && canGenerateAuxiliaryContent()) {
               // MUST be awaited (not `void`). `createUIMessageStream`
               // closes the SSE controller as soon as the merged stream
               // drains — and the merged stream resolves once this
@@ -1551,8 +1638,7 @@ export async function handleAiChatRequest(req: Request) {
               // tradeoff for getting pills delivered.
               await emitConversationSuggestions({
                 writer,
-                anthropic: providers.anthropic(),
-                supabaseClient,
+                model: getAuxiliaryModel(providers),
                 conversation,
                 branch: [
                   ...branchMessages,
@@ -1583,23 +1669,21 @@ export async function handleAiChatRequest(req: Request) {
  */
 async function emitConversationTitle({
   writer,
-  anthropic,
-  supabaseClient,
+  model,
   conversation,
   firstMessage,
 }: {
   writer: UIMessageStreamWriter<AppUIMessage>;
-  anthropic: AnthropicProvider;
-  supabaseClient: SupabaseAnon;
+  model: LanguageModel;
   conversation: ConversationAccess;
   firstMessage: AppUIMessage;
 }) {
   try {
-    const title = await generateConversationTitle({ anthropic, firstMessage });
-    await supabaseClient
-      .from('conversations')
-      .update({ title })
-      .eq('id', conversation.id);
+    const title = await generateConversationTitle({ model, firstMessage });
+    await query(
+      `UPDATE conversations SET title = $1, updated_at = NOW() WHERE id = $2`,
+      [title, conversation.id],
+    );
     writer.write({
       transient: true,
       type: 'data-title-update',
@@ -1625,42 +1709,30 @@ async function emitConversationTitle({
  */
 async function emitConversationSuggestions({
   writer,
-  anthropic,
-  supabaseClient,
+  model,
   conversation,
   branch,
 }: {
   writer: UIMessageStreamWriter<AppUIMessage>;
-  anthropic: AnthropicProvider;
-  supabaseClient: SupabaseAnon;
+  model: LanguageModel;
   conversation: ConversationAccess;
   branch: AppUIMessage[];
 }) {
   try {
     const suggestions = await generateConversationSuggestions({
-      anthropic,
+      model,
       branch,
       conversationType: conversation.type,
     });
     if (suggestions.length === 0) return;
 
-    // Merge into existing settings (which holds `model`, etc.) instead of
-    // clobbering — keep the row's other fields intact.
-    const { data: convRow } = await supabaseClient
-      .from('conversations')
-      .select('settings')
-      .eq('id', conversation.id)
-      .single();
-    const currentSettings =
-      convRow?.settings &&
-      typeof convRow.settings === 'object' &&
-      !Array.isArray(convRow.settings)
-        ? (convRow.settings as Record<string, unknown>)
-        : {};
-    await supabaseClient
-      .from('conversations')
-      .update({ settings: { ...currentSettings, suggestions } })
-      .eq('id', conversation.id);
+    await query(
+      `UPDATE conversations
+       SET settings = jsonb_set(COALESCE(settings, '{}'::jsonb), '{suggestions}', $2::jsonb, true),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [conversation.id, JSON.stringify(suggestions)],
+    );
 
     writer.write({
       transient: true,

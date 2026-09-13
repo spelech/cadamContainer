@@ -23,10 +23,12 @@ import { Route as AssetsSplatRouteImport } from './routes/assets.$'
 import { Route as ApiTitleGeneratorRouteImport } from './routes/api/title-generator'
 import { Route as ApiPromptGeneratorRouteImport } from './routes/api/prompt-generator'
 import { Route as ApiParametricChatRouteImport } from './routes/api/parametric-chat'
+import { Route as ApiMessagesRouteImport } from './routes/api/messages'
 import { Route as ApiMeshRouteImport } from './routes/api/mesh'
 import { Route as ApiFalWebhookRouteImport } from './routes/api/fal-webhook'
 import { Route as ApiDeleteUserRouteImport } from './routes/api/delete-user'
 import { Route as ApiCreativeChatRouteImport } from './routes/api/creative-chat'
+import { Route as ApiConversationsRouteImport } from './routes/api/conversations'
 import { Route as ApiBillingStatusRouteImport } from './routes/api/billing-status'
 import { Route as ApiBillingProductsRouteImport } from './routes/api/billing-products'
 import { Route as ApiBillingCheckoutRouteImport } from './routes/api/billing-checkout'
@@ -34,6 +36,11 @@ import { Route as LayoutSubscriptionRouteImport } from './routes/_layout/subscri
 import { Route as LayoutAuthRouteImport } from './routes/_layout/_auth'
 import { Route as LayoutSplatRouteImport } from './routes/_layout/$'
 import { Route as ApiJacksonPollockSplatRouteImport } from './routes/api/jackson-pollock/$'
+import { Route as ApiConversationsIdRouteImport } from './routes/api/conversations/$id'
+import { Route as ApiAuthMeRouteImport } from './routes/api/auth/me'
+import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
+import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
+import { Route as ApiAuthCallbackRouteImport } from './routes/api/auth/callback'
 import { Route as LayoutShareIdRouteImport } from './routes/_layout/share/$id'
 import { Route as LayoutAuthSettingsRouteImport } from './routes/_layout/_auth/settings'
 import { Route as LayoutAuthHistoryRouteImport } from './routes/_layout/_auth/history'
@@ -109,6 +116,11 @@ const ApiParametricChatRoute = ApiParametricChatRouteImport.update({
   path: '/api/parametric-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMessagesRoute = ApiMessagesRouteImport.update({
+  id: '/api/messages',
+  path: '/api/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMeshRoute = ApiMeshRouteImport.update({
   id: '/api/mesh',
   path: '/api/mesh',
@@ -127,6 +139,11 @@ const ApiDeleteUserRoute = ApiDeleteUserRouteImport.update({
 const ApiCreativeChatRoute = ApiCreativeChatRouteImport.update({
   id: '/api/creative-chat',
   path: '/api/creative-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiConversationsRoute = ApiConversationsRouteImport.update({
+  id: '/api/conversations',
+  path: '/api/conversations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiBillingStatusRoute = ApiBillingStatusRouteImport.update({
@@ -161,6 +178,31 @@ const LayoutSplatRoute = LayoutSplatRouteImport.update({
 const ApiJacksonPollockSplatRoute = ApiJacksonPollockSplatRouteImport.update({
   id: '/api/jackson-pollock/$',
   path: '/api/jackson-pollock/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiConversationsIdRoute = ApiConversationsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiConversationsRoute,
+} as any)
+const ApiAuthMeRoute = ApiAuthMeRouteImport.update({
+  id: '/api/auth/me',
+  path: '/api/auth/me',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
+  id: '/api/auth/logout',
+  path: '/api/auth/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
+  id: '/api/auth/login',
+  path: '/api/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthCallbackRoute = ApiAuthCallbackRouteImport.update({
+  id: '/api/auth/callback',
+  path: '/api/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LayoutShareIdRoute = LayoutShareIdRouteImport.update({
@@ -205,10 +247,12 @@ export interface FileRoutesByFullPath {
   '/api/billing-checkout': typeof ApiBillingCheckoutRoute
   '/api/billing-products': typeof ApiBillingProductsRoute
   '/api/billing-status': typeof ApiBillingStatusRoute
+  '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/creative-chat': typeof ApiCreativeChatRoute
   '/api/delete-user': typeof ApiDeleteUserRoute
   '/api/fal-webhook': typeof ApiFalWebhookRoute
   '/api/mesh': typeof ApiMeshRoute
+  '/api/messages': typeof ApiMessagesRoute
   '/api/parametric-chat': typeof ApiParametricChatRoute
   '/api/prompt-generator': typeof ApiPromptGeneratorRoute
   '/api/title-generator': typeof ApiTitleGeneratorRoute
@@ -216,6 +260,11 @@ export interface FileRoutesByFullPath {
   '/history': typeof LayoutAuthHistoryRoute
   '/settings': typeof LayoutAuthSettingsRoute
   '/share/$id': typeof LayoutShareIdRoute
+  '/api/auth/callback': typeof ApiAuthCallbackRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/me': typeof ApiAuthMeRoute
+  '/api/conversations/$id': typeof ApiConversationsIdRoute
   '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute
   '/editor/$id': typeof LayoutAuthEditorIdRoute
   '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute
@@ -235,10 +284,12 @@ export interface FileRoutesByTo {
   '/api/billing-checkout': typeof ApiBillingCheckoutRoute
   '/api/billing-products': typeof ApiBillingProductsRoute
   '/api/billing-status': typeof ApiBillingStatusRoute
+  '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/creative-chat': typeof ApiCreativeChatRoute
   '/api/delete-user': typeof ApiDeleteUserRoute
   '/api/fal-webhook': typeof ApiFalWebhookRoute
   '/api/mesh': typeof ApiMeshRoute
+  '/api/messages': typeof ApiMessagesRoute
   '/api/parametric-chat': typeof ApiParametricChatRoute
   '/api/prompt-generator': typeof ApiPromptGeneratorRoute
   '/api/title-generator': typeof ApiTitleGeneratorRoute
@@ -246,6 +297,11 @@ export interface FileRoutesByTo {
   '/history': typeof LayoutAuthHistoryRoute
   '/settings': typeof LayoutAuthSettingsRoute
   '/share/$id': typeof LayoutShareIdRoute
+  '/api/auth/callback': typeof ApiAuthCallbackRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/me': typeof ApiAuthMeRoute
+  '/api/conversations/$id': typeof ApiConversationsIdRoute
   '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute
   '/editor/$id': typeof LayoutAuthEditorIdRoute
   '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute
@@ -267,10 +323,12 @@ export interface FileRoutesById {
   '/api/billing-checkout': typeof ApiBillingCheckoutRoute
   '/api/billing-products': typeof ApiBillingProductsRoute
   '/api/billing-status': typeof ApiBillingStatusRoute
+  '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/creative-chat': typeof ApiCreativeChatRoute
   '/api/delete-user': typeof ApiDeleteUserRoute
   '/api/fal-webhook': typeof ApiFalWebhookRoute
   '/api/mesh': typeof ApiMeshRoute
+  '/api/messages': typeof ApiMessagesRoute
   '/api/parametric-chat': typeof ApiParametricChatRoute
   '/api/prompt-generator': typeof ApiPromptGeneratorRoute
   '/api/title-generator': typeof ApiTitleGeneratorRoute
@@ -279,6 +337,11 @@ export interface FileRoutesById {
   '/_layout/_auth/history': typeof LayoutAuthHistoryRoute
   '/_layout/_auth/settings': typeof LayoutAuthSettingsRoute
   '/_layout/share/$id': typeof LayoutShareIdRoute
+  '/api/auth/callback': typeof ApiAuthCallbackRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/me': typeof ApiAuthMeRoute
+  '/api/conversations/$id': typeof ApiConversationsIdRoute
   '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute
   '/_layout/_auth/editor/$id': typeof LayoutAuthEditorIdRoute
   '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute
@@ -300,10 +363,12 @@ export interface FileRouteTypes {
     | '/api/billing-checkout'
     | '/api/billing-products'
     | '/api/billing-status'
+    | '/api/conversations'
     | '/api/creative-chat'
     | '/api/delete-user'
     | '/api/fal-webhook'
     | '/api/mesh'
+    | '/api/messages'
     | '/api/parametric-chat'
     | '/api/prompt-generator'
     | '/api/title-generator'
@@ -311,6 +376,11 @@ export interface FileRouteTypes {
     | '/history'
     | '/settings'
     | '/share/$id'
+    | '/api/auth/callback'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/me'
+    | '/api/conversations/$id'
     | '/api/jackson-pollock/$'
     | '/editor/$id'
     | '/api/internal/account/delete'
@@ -330,10 +400,12 @@ export interface FileRouteTypes {
     | '/api/billing-checkout'
     | '/api/billing-products'
     | '/api/billing-status'
+    | '/api/conversations'
     | '/api/creative-chat'
     | '/api/delete-user'
     | '/api/fal-webhook'
     | '/api/mesh'
+    | '/api/messages'
     | '/api/parametric-chat'
     | '/api/prompt-generator'
     | '/api/title-generator'
@@ -341,6 +413,11 @@ export interface FileRouteTypes {
     | '/history'
     | '/settings'
     | '/share/$id'
+    | '/api/auth/callback'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/me'
+    | '/api/conversations/$id'
     | '/api/jackson-pollock/$'
     | '/editor/$id'
     | '/api/internal/account/delete'
@@ -361,10 +438,12 @@ export interface FileRouteTypes {
     | '/api/billing-checkout'
     | '/api/billing-products'
     | '/api/billing-status'
+    | '/api/conversations'
     | '/api/creative-chat'
     | '/api/delete-user'
     | '/api/fal-webhook'
     | '/api/mesh'
+    | '/api/messages'
     | '/api/parametric-chat'
     | '/api/prompt-generator'
     | '/api/title-generator'
@@ -373,6 +452,11 @@ export interface FileRouteTypes {
     | '/_layout/_auth/history'
     | '/_layout/_auth/settings'
     | '/_layout/share/$id'
+    | '/api/auth/callback'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/me'
+    | '/api/conversations/$id'
     | '/api/jackson-pollock/$'
     | '/_layout/_auth/editor/$id'
     | '/api/internal/account/delete'
@@ -391,14 +475,20 @@ export interface RootRouteChildren {
   ApiBillingCheckoutRoute: typeof ApiBillingCheckoutRoute
   ApiBillingProductsRoute: typeof ApiBillingProductsRoute
   ApiBillingStatusRoute: typeof ApiBillingStatusRoute
+  ApiConversationsRoute: typeof ApiConversationsRouteWithChildren
   ApiCreativeChatRoute: typeof ApiCreativeChatRoute
   ApiDeleteUserRoute: typeof ApiDeleteUserRoute
   ApiFalWebhookRoute: typeof ApiFalWebhookRoute
   ApiMeshRoute: typeof ApiMeshRoute
+  ApiMessagesRoute: typeof ApiMessagesRoute
   ApiParametricChatRoute: typeof ApiParametricChatRoute
   ApiPromptGeneratorRoute: typeof ApiPromptGeneratorRoute
   ApiTitleGeneratorRoute: typeof ApiTitleGeneratorRoute
   AssetsSplatRoute: typeof AssetsSplatRoute
+  ApiAuthCallbackRoute: typeof ApiAuthCallbackRoute
+  ApiAuthLoginRoute: typeof ApiAuthLoginRoute
+  ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
+  ApiAuthMeRoute: typeof ApiAuthMeRoute
   ApiJacksonPollockSplatRoute: typeof ApiJacksonPollockSplatRoute
   ApiInternalAccountDeleteRoute: typeof ApiInternalAccountDeleteRoute
 }
@@ -503,6 +593,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiParametricChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/messages': {
+      id: '/api/messages'
+      path: '/api/messages'
+      fullPath: '/api/messages'
+      preLoaderRoute: typeof ApiMessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mesh': {
       id: '/api/mesh'
       path: '/api/mesh'
@@ -529,6 +626,13 @@ declare module '@tanstack/react-router' {
       path: '/api/creative-chat'
       fullPath: '/api/creative-chat'
       preLoaderRoute: typeof ApiCreativeChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/conversations': {
+      id: '/api/conversations'
+      path: '/api/conversations'
+      fullPath: '/api/conversations'
+      preLoaderRoute: typeof ApiConversationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/billing-status': {
@@ -578,6 +682,41 @@ declare module '@tanstack/react-router' {
       path: '/api/jackson-pollock/$'
       fullPath: '/api/jackson-pollock/$'
       preLoaderRoute: typeof ApiJacksonPollockSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/conversations/$id': {
+      id: '/api/conversations/$id'
+      path: '/$id'
+      fullPath: '/api/conversations/$id'
+      preLoaderRoute: typeof ApiConversationsIdRouteImport
+      parentRoute: typeof ApiConversationsRoute
+    }
+    '/api/auth/me': {
+      id: '/api/auth/me'
+      path: '/api/auth/me'
+      fullPath: '/api/auth/me'
+      preLoaderRoute: typeof ApiAuthMeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/logout': {
+      id: '/api/auth/logout'
+      path: '/api/auth/logout'
+      fullPath: '/api/auth/logout'
+      preLoaderRoute: typeof ApiAuthLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/login': {
+      id: '/api/auth/login'
+      path: '/api/auth/login'
+      fullPath: '/api/auth/login'
+      preLoaderRoute: typeof ApiAuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/callback': {
+      id: '/api/auth/callback'
+      path: '/api/auth/callback'
+      fullPath: '/api/auth/callback'
+      preLoaderRoute: typeof ApiAuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_layout/share/$id': {
@@ -653,6 +792,17 @@ const LayoutRouteChildren: LayoutRouteChildren = {
 const LayoutRouteWithChildren =
   LayoutRoute._addFileChildren(LayoutRouteChildren)
 
+interface ApiConversationsRouteChildren {
+  ApiConversationsIdRoute: typeof ApiConversationsIdRoute
+}
+
+const ApiConversationsRouteChildren: ApiConversationsRouteChildren = {
+  ApiConversationsIdRoute: ApiConversationsIdRoute,
+}
+
+const ApiConversationsRouteWithChildren =
+  ApiConversationsRoute._addFileChildren(ApiConversationsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   LayoutRoute: LayoutRouteWithChildren,
   ConfirmEmailRoute: ConfirmEmailRoute,
@@ -666,14 +816,20 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBillingCheckoutRoute: ApiBillingCheckoutRoute,
   ApiBillingProductsRoute: ApiBillingProductsRoute,
   ApiBillingStatusRoute: ApiBillingStatusRoute,
+  ApiConversationsRoute: ApiConversationsRouteWithChildren,
   ApiCreativeChatRoute: ApiCreativeChatRoute,
   ApiDeleteUserRoute: ApiDeleteUserRoute,
   ApiFalWebhookRoute: ApiFalWebhookRoute,
   ApiMeshRoute: ApiMeshRoute,
+  ApiMessagesRoute: ApiMessagesRoute,
   ApiParametricChatRoute: ApiParametricChatRoute,
   ApiPromptGeneratorRoute: ApiPromptGeneratorRoute,
   ApiTitleGeneratorRoute: ApiTitleGeneratorRoute,
   AssetsSplatRoute: AssetsSplatRoute,
+  ApiAuthCallbackRoute: ApiAuthCallbackRoute,
+  ApiAuthLoginRoute: ApiAuthLoginRoute,
+  ApiAuthLogoutRoute: ApiAuthLogoutRoute,
+  ApiAuthMeRoute: ApiAuthMeRoute,
   ApiJacksonPollockSplatRoute: ApiJacksonPollockSplatRoute,
   ApiInternalAccountDeleteRoute: ApiInternalAccountDeleteRoute,
 }

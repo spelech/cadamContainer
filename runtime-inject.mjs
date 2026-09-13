@@ -98,8 +98,8 @@ if (fs.existsSync(serverIndexPath)) {
         );
         const newEtag = `"${stats.size.toString(16)}-${Math.floor(stats.mtimeMs).toString(16)}"`;
         newBody = newBody.replace(
-          /"etag":\s*"[^"]+"/,
-          `"etag": ${JSON.stringify(newEtag)}`,
+          /"etag":\s*"(\\.|[^"\\])*"/,
+          () => `"etag": ${JSON.stringify(newEtag)}`,
         );
         updatedAssetCount++;
       }

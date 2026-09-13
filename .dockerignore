@@ -1,0 +1,13 @@
+node_modules
+.git
+.github
+.output
+dist
+dist-ssr
+db
+*.local
+.env
+.env.*
+.superpowers
+.tanstack
+*.tsbuildinfo
