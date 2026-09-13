@@ -1,4 +1,4 @@
-import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHmac, createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { query } from './db';
 
 export const SESSION_COOKIE_NAME = 'cadam_session';
@@ -610,9 +610,7 @@ export async function syncUserProfile(
   }
 
   // 2. Determine ID: use sub if valid UUID, otherwise generate random UUID
-  const newId = validSubUuid
-    ? validSubUuid
-    : (await query<{ new_id: string }>('SELECT gen_random_uuid() as new_id')).rows[0].new_id;
+  const newId = validSubUuid ? validSubUuid : randomUUID();
 
   // 3. Insert fresh profile
   const insertRes = await query<{

@@ -19,17 +19,22 @@ export const Route = createFileRoute('/api/auth/callback')({
     handlers: {
       OPTIONS: preflight,
       GET: async ({ request }) => {
+        const secure = isSecure(request);
         const url = new URL(request.url);
         const error = url.searchParams.get('error');
         const errorDesc = url.searchParams.get('error_description');
 
         if (error) {
           console.error('[auth] OAuth error from provider:', error, errorDesc);
+          const headers = new Headers({
+            Location: `/cadam/?auth_error=${encodeURIComponent(error)}`,
+          });
+          for (const clearCookie of clearOauthCookies({ secure })) {
+            headers.append('Set-Cookie', clearCookie);
+          }
           return new Response(null, {
             status: 302,
-            headers: {
-              Location: `/cadam/?auth_error=${encodeURIComponent(error)}`,
-            },
+            headers,
           });
         }
 
@@ -59,7 +64,6 @@ export const Route = createFileRoute('/api/auth/callback')({
         }
 
         const redirectUri = getCallbackUri(request);
-        const secure = isSecure(request);
 
         try {
           // 1. Exchange code for tokens
@@ -96,13 +100,17 @@ export const Route = createFileRoute('/api/auth/callback')({
         } catch (err: unknown) {
           console.error('[auth] Callback authentication error:', err);
           const message = err instanceof Error ? err.message : String(err);
-          return json(
+          const res = json(
             {
               error: 'Authentication failed',
               details: message,
             },
             500,
           );
+          for (const clearCookie of clearOauthCookies({ secure })) {
+            res.headers.append('Set-Cookie', clearCookie);
+          }
+          return res;
         }
       },
     },
