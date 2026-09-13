@@ -35,7 +35,8 @@ import {
   resolveDanglingToolParts,
 } from './chatToolPersistence';
 import { handleMeshRequest } from './mesh';
-import { getAnonSupabaseClient } from './supabaseClient';
+import { getSessionUser } from './auth';
+import { query } from './db';
 
 /**
  * USD list price per **million** tokens, keyed by the same model IDs the
@@ -600,8 +601,6 @@ function billingTokensFromUsage(
   return Math.max(1, Math.ceil(usdCost / USD_PER_BILLING_TOKEN));
 }
 
-type SupabaseAnon = ReturnType<typeof getAnonSupabaseClient>;
-
 type BranchMessageRow = Pick<
   Message,
   'id' | 'role' | 'parts' | 'metadata' | 'parent_message_id'
@@ -710,23 +709,36 @@ function messageRowToUIMessage(
  * the server (mirrors the same defense in shared/Tree.ts on the client).
  */
 async function loadBranchFromDb({
-  supabaseClient,
   conversationId,
   leafId,
 }: {
-  supabaseClient: SupabaseAnon;
   conversationId: string;
   leafId: string;
 }): Promise<{ branch: AppUIMessage[]; leafRole: 'user' | 'assistant' }> {
-  const { data: rows, error } = await supabaseClient
-    .from('messages')
-    .select('id, role, parts, metadata, parent_message_id')
-    .eq('conversation_id', conversationId)
-    .overrideTypes<BranchMessageRow[]>();
+  const result = await query<BranchMessageRow>(
+    `SELECT id, role, parts, metadata, COALESCE(parent_message_id, parent_id) as parent_message_id
+     FROM messages
+     WHERE conversation_id = $1`,
+    [conversationId],
+  );
 
-  if (error || !rows) {
-    throw new Error('Failed to load conversation messages');
-  }
+  const rows: BranchMessageRow[] = result.rows.map((row) => ({
+    id: row.id,
+    role: row.role,
+    parent_message_id: row.parent_message_id,
+    parts:
+      typeof row.parts === 'string'
+        ? JSON.parse(row.parts)
+        : Array.isArray(row.parts)
+          ? row.parts
+          : [],
+    metadata:
+      typeof row.metadata === 'string'
+        ? JSON.parse(row.metadata)
+        : row.metadata && typeof row.metadata === 'object'
+          ? row.metadata
+          : {},
+  }));
 
   const byId = new Map<string, BranchMessageRow>();
   for (const row of rows) byId.set(row.id, row);
@@ -920,37 +932,35 @@ async function sniffImageMediaType(bytes: Uint8Array): Promise<string | null> {
 }
 
 async function downloadAsBase64(
-  supabaseClient: SupabaseAnon,
   bucket: string,
   path: string,
 ): Promise<{ base64: string; mediaType: string } | null> {
-  const { data, error } = await supabaseClient.storage
-    .from(bucket)
-    .download(path);
-  if (error || !data) return null;
+  try {
+    const { getAnonSupabaseClient } = await import('./supabaseClient');
+    const supabaseClient = getAnonSupabaseClient();
+    const { data, error } = await supabaseClient.storage
+      .from(bucket)
+      .download(path);
+    if (error || !data) return null;
 
-  const bytes = new Uint8Array(await data.arrayBuffer());
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    binary += String.fromCharCode(...bytes.slice(index, index + chunkSize));
+    const bytes = new Uint8Array(await data.arrayBuffer());
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+      binary += String.fromCharCode(...bytes.slice(index, index + chunkSize));
+    }
+    const mediaType =
+      (await sniffImageMediaType(bytes)) || data.type || 'image/png';
+    return { base64: btoa(binary), mediaType };
+  } catch {
+    return null;
   }
-  // Trust the bytes over the stored content type: the metadata mislabels
-  // JPEG/WebP uploads as PNG, and providers reject a mime/bytes mismatch.
-  // `||` (not `??`) on purpose: a Blob with no Content-Type header reports
-  // `data.type` as `''`, which must fall through to the PNG default rather
-  // than emit an empty media type.
-  const mediaType =
-    (await sniffImageMediaType(bytes)) || data.type || 'image/png';
-  return { base64: btoa(binary), mediaType };
 }
 
 function parametricTools({
   previewPathForToolCall,
-  supabaseClient,
 }: {
   previewPathForToolCall: (toolCallId: string) => string;
-  supabaseClient: SupabaseAnon;
 }) {
   return {
     build_parametric_model: {
@@ -968,7 +978,6 @@ function parametricTools({
         // didn't land, `downloadAsBase64` returns null and we fall back
         // to text-only — never block the loop on a missing inspection sheet.
         const downloaded = await downloadAsBase64(
-          supabaseClient,
           'images',
           previewPathForToolCall(toolCallId),
         );
@@ -1020,14 +1029,7 @@ export async function handleAiChatRequest(req: Request) {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
-  const supabaseClient = getAnonSupabaseClient({
-    global: {
-      headers: { Authorization: req.headers.get('Authorization') ?? '' },
-    },
-  });
-  const {
-    data: { user },
-  } = await supabaseClient.auth.getUser();
+  const user = await getSessionUser(req);
 
   if (!user?.id || !user.email) {
     return jsonResponse({ error: 'Unauthorized' }, 401);
@@ -1038,15 +1040,16 @@ export async function handleAiChatRequest(req: Request) {
     return jsonResponse({ error: 'Invalid request body' }, 400);
   }
 
-  const { data: conversation, error: conversationError } = await supabaseClient
-    .from('conversations')
-    .select('id, type, user_id, current_message_leaf_id')
-    .eq('id', rawBody.conversationId)
-    .eq('user_id', user.id)
-    .single()
-    .overrideTypes<ConversationAccess>();
+  const convResult = await query<ConversationAccess>(
+    `SELECT id, type, user_id, current_message_leaf_id
+     FROM conversations
+     WHERE id = $1 AND user_id = $2
+     LIMIT 1`,
+    [rawBody.conversationId, user.id],
+  );
 
-  if (conversationError || !conversation) {
+  const conversation = convResult.rows[0];
+  if (!conversation) {
     return jsonResponse({ error: 'Conversation not found' }, 404);
   }
 
@@ -1090,7 +1093,6 @@ export async function handleAiChatRequest(req: Request) {
     conversation.type === 'creative'
       ? creativeTools({ conversation, req, model: rawBody.model })
       : parametricTools({
-          supabaseClient,
           previewPathForToolCall: (toolCallId) =>
             `${user.id}/${conversation.id}/inspection-preview-${toolCallId}`,
         });
@@ -1099,7 +1101,6 @@ export async function handleAiChatRequest(req: Request) {
   let leafRole: 'user' | 'assistant';
   try {
     const branchResult = await loadBranchFromDb({
-      supabaseClient,
       conversationId: conversation.id,
       leafId: conversation.current_message_leaf_id,
     });
@@ -1167,7 +1168,6 @@ export async function handleAiChatRequest(req: Request) {
             const imageId = imageIdFromFilename(part.filename);
             if (!imageId) return null;
             const downloaded = await downloadAsBase64(
-              supabaseClient,
               'images',
               imageStoragePath(conversation.user_id, conversation.id, imageId),
             );
@@ -1430,7 +1430,6 @@ export async function handleAiChatRequest(req: Request) {
         void emitConversationTitle({
           writer,
           anthropic: providers.anthropic(),
-          supabaseClient,
           conversation,
           firstMessage: branchMessages[0],
         });
@@ -1502,37 +1501,56 @@ export async function handleAiChatRequest(req: Request) {
               isContinuation,
               hasPendingToolCall,
             });
-            let error: { message: string } | null = null;
-            if (persistAction === 'update') {
-              ({ error } = await supabaseClient
-                .from('messages')
-                .update(serializedMessage)
-                .eq('id', responseMessage.id)
-                .eq('conversation_id', conversation.id));
-            } else if (persistAction === 'insert') {
-              ({ error } = await supabaseClient.from('messages').insert({
-                id: responseMessage.id,
-                conversation_id: conversation.id,
-                role: responseMessage.role,
-                ...serializedMessage,
-                parent_message_id: leafMessageId,
-              }));
-            } else {
-              // persistAction === 'skip': the client owns this row's `parts`
-              // (it persists the resolved tool output). Still record this
-              // turn's billing metadata via a metadata-ONLY update — it touches
-              // a different column than the client's `parts` write, and
-              // Postgres re-evaluates concurrent same-row updates, so the
-              // client's parts are never clobbered.
-              ({ error } = await supabaseClient
-                .from('messages')
-                .update({ metadata: serializedMessage.metadata })
-                .eq('id', responseMessage.id)
-                .eq('conversation_id', conversation.id));
-            }
 
-            if (error) {
-              logError(error, {
+            try {
+              if (persistAction === 'update') {
+                await query(
+                  `UPDATE messages
+                   SET parts = $1::jsonb, metadata = $2::jsonb
+                   WHERE id = $3 AND conversation_id = $4`,
+                  [
+                    JSON.stringify(serializedMessage.parts),
+                    JSON.stringify(serializedMessage.metadata),
+                    responseMessage.id,
+                    conversation.id,
+                  ],
+                );
+              } else if (persistAction === 'insert') {
+                await query(
+                  `INSERT INTO messages (id, conversation_id, user_id, role, parts, metadata, parent_message_id, parent_id)
+                   VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $7)
+                   ON CONFLICT (id) DO UPDATE SET
+                     parts = EXCLUDED.parts,
+                     metadata = EXCLUDED.metadata`,
+                  [
+                    responseMessage.id,
+                    conversation.id,
+                    user.id,
+                    responseMessage.role,
+                    JSON.stringify(serializedMessage.parts),
+                    JSON.stringify(serializedMessage.metadata),
+                    leafMessageId,
+                  ],
+                );
+                await query(
+                  `UPDATE conversations SET current_message_leaf_id = $1, updated_at = NOW() WHERE id = $2`,
+                  [responseMessage.id, conversation.id],
+                );
+              } else {
+                // persistAction === 'skip': metadata-only update
+                await query(
+                  `UPDATE messages
+                   SET metadata = $1::jsonb
+                   WHERE id = $2 AND conversation_id = $3`,
+                  [
+                    JSON.stringify(serializedMessage.metadata),
+                    responseMessage.id,
+                    conversation.id,
+                  ],
+                );
+              }
+            } catch (persistError) {
+              logError(persistError, {
                 functionName: 'ai-chat',
                 statusCode: 500,
                 userId: user.id,
@@ -1587,7 +1605,6 @@ export async function handleAiChatRequest(req: Request) {
               await emitConversationSuggestions({
                 writer,
                 anthropic: providers.anthropic(),
-                supabaseClient,
                 conversation,
                 branch: [
                   ...branchMessages,
@@ -1619,22 +1636,20 @@ export async function handleAiChatRequest(req: Request) {
 async function emitConversationTitle({
   writer,
   anthropic,
-  supabaseClient,
   conversation,
   firstMessage,
 }: {
   writer: UIMessageStreamWriter<AppUIMessage>;
   anthropic: AnthropicProvider;
-  supabaseClient: SupabaseAnon;
   conversation: ConversationAccess;
   firstMessage: AppUIMessage;
 }) {
   try {
     const title = await generateConversationTitle({ anthropic, firstMessage });
-    await supabaseClient
-      .from('conversations')
-      .update({ title })
-      .eq('id', conversation.id);
+    await query(
+      `UPDATE conversations SET title = $1, updated_at = NOW() WHERE id = $2`,
+      [title, conversation.id],
+    );
     writer.write({
       transient: true,
       type: 'data-title-update',
@@ -1661,13 +1676,11 @@ async function emitConversationTitle({
 async function emitConversationSuggestions({
   writer,
   anthropic,
-  supabaseClient,
   conversation,
   branch,
 }: {
   writer: UIMessageStreamWriter<AppUIMessage>;
   anthropic: AnthropicProvider;
-  supabaseClient: SupabaseAnon;
   conversation: ConversationAccess;
   branch: AppUIMessage[];
 }) {
@@ -1679,23 +1692,13 @@ async function emitConversationSuggestions({
     });
     if (suggestions.length === 0) return;
 
-    // Merge into existing settings (which holds `model`, etc.) instead of
-    // clobbering — keep the row's other fields intact.
-    const { data: convRow } = await supabaseClient
-      .from('conversations')
-      .select('settings')
-      .eq('id', conversation.id)
-      .single();
-    const currentSettings =
-      convRow?.settings &&
-      typeof convRow.settings === 'object' &&
-      !Array.isArray(convRow.settings)
-        ? (convRow.settings as Record<string, unknown>)
-        : {};
-    await supabaseClient
-      .from('conversations')
-      .update({ settings: { ...currentSettings, suggestions } })
-      .eq('id', conversation.id);
+    await query(
+      `UPDATE conversations
+       SET settings = jsonb_set(COALESCE(settings, '{}'::jsonb), '{suggestions}', $2::jsonb, true),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [conversation.id, JSON.stringify(suggestions)],
+    );
 
     writer.write({
       transient: true,
