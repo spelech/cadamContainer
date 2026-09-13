@@ -1,58 +1,38 @@
 import { Button } from '@/components/ui/button';
-import { getLevel, useAuth } from '@/contexts/AuthContext';
-import { Loader2, Sparkles } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  Cpu,
+  ExternalLink,
+  Loader2,
+  Shield,
+  Sparkles,
+  Zap,
+} from 'lucide-react';
 import { Link } from '@tanstack/react-router';
-import { useTokenPackPurchase } from '@/services/subscriptionService';
-import { cn } from '@/lib/utils';
-import { DeleteAccountDialog } from '@/components/auth/DeleteAccountDialog';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import * as Sentry from '@sentry/react';
 import { useProfile, useUpdateProfile } from '@/services/profileService';
-import { AvatarUpdateDialog } from '@/components/auth/AvatarUpdateDialog';
-import { useTokenPacks } from '@/hooks/useTokenPacks';
-import { PLAN_DISPLAY_NAMES } from '@/config/plan-features';
-import { BILLING_URL, BILLING_UPGRADE_URL } from '@/config/billing';
-import { accountUrl, ssoManaged } from '@/lib/supabase';
+import { useAvailableModels } from '@/hooks/useAvailableModels';
 import { UserAvatar } from '@/components/chat/UserAvatar';
+import { accountUrl, ssoManaged } from '@/lib/supabase';
 
-function formatPeriodEnd(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
+const DEFAULT_SSO_PROVIDER_URL = 'https://sso.wileyriley.com';
 
 export default function SettingsView() {
-  const { billing, user, resetPassword } = useAuth();
-  const level = getLevel(billing);
-  const freeTokens = billing?.tokens.free ?? 0;
-  const subscriptionTokens = billing?.tokens.subscription ?? 0;
-  const purchasedTokens = billing?.tokens.purchased ?? 0;
-  const totalTokens = billing?.tokens.total ?? 0;
-  const periodEnd = formatPeriodEnd(
-    billing?.subscription?.currentPeriodEnd ?? null,
-  );
+  const { user } = useAuth();
   const { data: profile } = useProfile();
   const { mutate: updateProfile, isPending: isUpdateLoading } =
     useUpdateProfile();
+  const { models, isLoading: isModelsLoading } = useAvailableModels();
   const { toast } = useToast();
   const [newName, setNewName] = useState(profile?.full_name || '');
   const [editingName, setEditingName] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
-  const { data: tokenPacks = [] } = useTokenPacks();
-  const {
-    mutate: purchaseTokenPack,
-    isPending: isPurchaseLoading,
-    variables: purchaseVariables,
-  } = useTokenPackPurchase();
+
+  const ssoAccountUrl = accountUrl || DEFAULT_SSO_PROVIDER_URL;
 
   useEffect(() => {
     if (editingName) {
@@ -112,43 +92,6 @@ export default function SettingsView() {
     );
   };
 
-  const { mutate: handleResetPassword, isPending: isResetLoading } =
-    useMutation({
-      mutationFn: async () => {
-        if (!user?.email) throw new Error('User email not found');
-        await resetPassword(user?.email);
-      },
-      onSuccess: () => {
-        toast({
-          title: 'Success',
-          description:
-            'Password reset instructions have been sent to your email',
-        });
-      },
-      onError: () => {
-        toast({
-          title: 'Error',
-          description: 'Failed to reset password',
-          variant: 'destructive',
-        });
-      },
-    });
-
-  // When SSO owns the identity and an external account page is configured,
-  // profile / email / password / delete are managed there (the
-  // accounts.google.com model) rather than edited in-app. Self-host (no SSO
-  // or no account URL) keeps the native controls. `ssoManaged` is imported from
-  // @/lib/supabase so every SSO gate shares one definition.
-
-  const tierLabel = `Adam ${PLAN_DISPLAY_NAMES[level]}`;
-
-  const tierAccent =
-    level === 'free'
-      ? 'bg-adam-neutral-700 text-adam-neutral-50'
-      : level === 'standard'
-        ? 'bg-adam-blue/15 text-adam-blue'
-        : 'bg-gradient-to-r from-adam-blue/20 to-fuchsia-500/20 text-adam-neutral-50';
-
   return (
     <div className="flex min-h-full w-full items-center justify-center bg-adam-background-1 px-6 py-10">
       <div className="w-full max-w-xl">
@@ -157,77 +100,51 @@ export default function SettingsView() {
             Settings
           </h1>
           <p className="mt-1 text-sm text-adam-neutral-200">
-            Manage your account, billing, and preferences.
+            Manage your user profile, AI gateway, and system configuration.
           </p>
         </header>
 
         <div className="flex flex-col gap-4">
-          {/* Account */}
+          {/* User Profile Card */}
           <section className="rounded-xl border border-adam-neutral-800 bg-adam-background-2 p-6">
             <h2 className="mb-5 text-sm font-medium text-adam-neutral-50">
-              Account
+              User Profile
             </h2>
 
-            {ssoManaged ? (
-              <div className="flex flex-col gap-5">
-                <div className="flex items-center gap-3">
-                  <UserAvatar className="h-10 w-10" />
-                  <div className="min-w-0">
-                    <div className="truncate text-sm text-adam-neutral-50">
-                      {profile?.full_name || user?.email}
-                    </div>
-                    <div className="mt-0.5 truncate text-xs text-adam-neutral-200">
-                      {user?.email}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-4 border-t border-adam-neutral-800 pt-5">
-                  <div className="min-w-0">
-                    <div className="text-sm text-adam-neutral-50">
-                      Manage account
-                    </div>
-                    <div className="mt-0.5 text-xs leading-relaxed text-adam-neutral-200">
-                      Update your name, email, password, and account details in
-                      your account.
-                    </div>
-                  </div>
-                  <a
-                    href={accountUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-shrink-0"
-                  >
-                    <Button variant="dark" className="rounded-full font-light">
-                      Manage account
-                    </Button>
-                  </a>
-                </div>
-              </div>
-            ) : (
-              <div className="divide-y divide-adam-neutral-800">
-                <div className="flex items-center justify-between gap-4 pb-5">
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <AvatarUpdateDialog />
-                    {editingName ? (
-                      <Input
-                        ref={nameInputRef}
-                        value={newName}
-                        className="h-9 w-full max-w-xs"
-                        onChange={(e) => setNewName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleUpdateName();
-                          }
-                        }}
-                      />
-                    ) : (
-                      <div className="min-w-0 truncate text-sm text-adam-neutral-50">
-                        {profile?.full_name || user?.email}
+            <div className="flex flex-col gap-5">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <UserAvatar className="h-12 w-12 text-base" />
+                  {editingName && !ssoManaged ? (
+                    <Input
+                      ref={nameInputRef}
+                      value={newName}
+                      className="h-9 w-full max-w-xs"
+                      onChange={(e) => setNewName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleUpdateName();
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-adam-neutral-50">
+                        {profile?.full_name ||
+                          user?.user_metadata?.full_name ||
+                          user?.email ||
+                          'User'}
                       </div>
-                    )}
-                  </div>
-                  {editingName ? (
+                      <div className="mt-0.5 truncate text-xs text-adam-neutral-200">
+                        {user?.email || 'No email configured'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {!ssoManaged && (
+                  editingName ? (
                     <div className="flex flex-shrink-0 items-center gap-2">
                       <Button
                         onClick={() => handleUpdateName()}
@@ -256,55 +173,171 @@ export default function SettingsView() {
                     <Button
                       onClick={() => setEditingName(true)}
                       variant="dark"
-                      className="flex-shrink-0 rounded-full font-light"
+                      className="flex-shrink-0 rounded-full font-light text-xs"
                     >
                       Edit
                     </Button>
-                  )}
-                </div>
-
-                <div className="py-5">
-                  <div className="text-sm text-adam-neutral-50">Email</div>
-                  <div className="mt-0.5 truncate text-xs text-adam-neutral-200">
-                    {user?.email}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-4 pt-5">
-                  <div className="min-w-0">
-                    <div className="text-sm text-adam-neutral-50">Password</div>
-                    <div className="mt-0.5 text-xs text-adam-neutral-200">
-                      Send a reset link to your email
-                    </div>
-                  </div>
-                  <Button
-                    onClick={() => handleResetPassword()}
-                    disabled={isResetLoading}
-                    variant="dark"
-                    className="flex-shrink-0 rounded-full font-light"
-                  >
-                    {isResetLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      'Reset Password'
-                    )}
-                  </Button>
-                </div>
+                  )
+                )}
               </div>
-            )}
+
+              <div className="flex items-center justify-between gap-4 border-t border-adam-neutral-800 pt-5">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-adam-neutral-50">
+                      Authentication Provider
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-adam-neutral-800 px-2 py-0.5 text-[11px] font-medium text-adam-neutral-300">
+                      <Shield className="h-3 w-3 text-emerald-400" />
+                      PocketID SSO
+                    </span>
+                  </div>
+                  <div className="mt-0.5 truncate text-xs text-adam-neutral-200">
+                    {ssoAccountUrl}
+                  </div>
+                </div>
+                <a
+                  href={ssoAccountUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-shrink-0"
+                >
+                  <Button variant="dark" className="rounded-full font-light text-xs">
+                    Manage Account
+                    <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                  </Button>
+                </a>
+              </div>
+            </div>
           </section>
 
-          {/* Notifications */}
+          {/* AI Gateway Card */}
+          <section className="rounded-xl border border-adam-neutral-800 bg-adam-background-2 p-6">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-sm font-medium text-adam-neutral-50">
+                <Cpu className="h-4 w-4 text-adam-neutral-200" />
+                AI Gateway
+              </h2>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Connected / Healthy
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between text-xs text-adam-neutral-200">
+                <div>
+                  <span className="font-medium text-adam-neutral-50">LiteLLM Proxy</span>
+                  <span className="ml-1.5 text-adam-neutral-300">orchestration</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {isModelsLoading && (
+                    <Loader2 className="h-3 w-3 animate-spin text-adam-neutral-300" />
+                  )}
+                  <span className="font-medium tabular-nums text-adam-neutral-50">
+                    {models.length}
+                  </span>
+                  <span>{models.length === 1 ? 'model loaded' : 'models loaded'}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col divide-y divide-adam-neutral-800/70 rounded-lg border border-adam-neutral-800 bg-adam-background-1 overflow-hidden">
+                {models.map((model) => (
+                  <div
+                    key={model.id}
+                    className="flex items-center justify-between p-3 transition-colors hover:bg-adam-neutral-800/30"
+                  >
+                    <div className="min-w-0 flex-1 pr-3">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-xs font-medium text-adam-neutral-50">
+                          {model.name}
+                        </span>
+                        {model.provider && (
+                          <span className="rounded bg-adam-neutral-800 px-1.5 py-0.5 text-[10px] text-adam-neutral-300">
+                            {model.provider}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-0.5 truncate text-[11px] text-adam-neutral-300">
+                        {model.id}
+                        {model.description ? ` • ${model.description}` : ''}
+                      </div>
+                    </div>
+                    <div className="flex flex-shrink-0 items-center gap-1">
+                      {model.supportsVision && (
+                        <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-1.5 py-0.5 text-[10px] text-blue-400">
+                          Vision
+                        </span>
+                      )}
+                      {model.supportsTools && (
+                        <span className="rounded-full border border-purple-500/20 bg-purple-500/10 px-1.5 py-0.5 text-[10px] text-purple-400">
+                          Tools
+                        </span>
+                      )}
+                      {model.supportsThinking && (
+                        <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400">
+                          Thinking
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {models.length === 0 && !isModelsLoading && (
+                  <div className="p-4 text-center text-xs text-adam-neutral-300">
+                    No models discovered from LiteLLM gateway.
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* Plan / System Status */}
+          <section className="rounded-xl border border-adam-neutral-800 bg-adam-background-2 p-6">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-sm font-medium text-adam-neutral-50">
+                <Zap className="h-4 w-4 text-adam-neutral-200" />
+                Plan & System Status
+              </h2>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-adam-blue/30 bg-gradient-to-r from-adam-blue/20 to-fuchsia-500/20 px-3 py-1 text-xs font-medium text-adam-neutral-50">
+                <Sparkles className="h-3 w-3 text-adam-blue" />
+                Self-Hosted / Unlimited
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-adam-neutral-200">Subscription Tier</span>
+                <span className="font-medium text-adam-neutral-50">Max Tier Unlocked</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-adam-neutral-200">Token Quota</span>
+                <span className="font-medium text-adam-neutral-50">Unlimited</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-adam-neutral-200">Generation Metering</span>
+                <span className="font-medium text-adam-neutral-50">Disabled (Bypassed)</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-adam-neutral-200">Deployment Type</span>
+                <span className="font-medium text-adam-neutral-50">Self-Hosted Container</span>
+              </div>
+              <div className="mt-2 border-t border-adam-neutral-800 pt-3 text-xs leading-relaxed text-adam-neutral-300">
+                All commercial SaaS billing, Stripe checkout gates, and token purchase limits are disabled for this instance.
+              </div>
+            </div>
+          </section>
+
+          {/* Preferences (Notifications) */}
           <section className="rounded-xl border border-adam-neutral-800 bg-adam-background-2 p-6">
             <h2 className="mb-5 text-sm font-medium text-adam-neutral-50">
-              Notifications
+              Preferences
             </h2>
 
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <div className="text-sm text-adam-neutral-50">Responses</div>
                 <div className="mt-0.5 text-xs leading-relaxed text-adam-neutral-200">
-                  Get notified when Adam finishes a long-running request.
+                  Get notified when CADAM finishes a long-running request.
                 </div>
               </div>
               <Switch
@@ -314,183 +347,6 @@ export default function SettingsView() {
               />
             </div>
           </section>
-
-          {/* Billing */}
-          <section className="rounded-xl border border-adam-neutral-800 bg-adam-background-2 p-6">
-            <h2 className="mb-5 text-sm font-medium text-adam-neutral-50">
-              Billing
-            </h2>
-
-            <div className="flex flex-col gap-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium',
-                      tierAccent,
-                    )}
-                  >
-                    {(level === 'pro' || level === 'max') && (
-                      <Sparkles className="h-3 w-3" />
-                    )}
-                    {tierLabel}
-                  </span>
-                  {periodEnd && (
-                    <span className="text-xs text-adam-neutral-300">
-                      Renews {periodEnd}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex flex-shrink-0 items-center gap-2">
-                  <Button
-                    asChild
-                    className="rounded-full font-light"
-                    variant="dark"
-                  >
-                    <a
-                      href={BILLING_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {level !== 'free' ? 'Manage' : 'Manage billing'}
-                    </a>
-                  </Button>
-                  {level === 'free' && (
-                    <Button
-                      asChild
-                      className="rounded-full font-light"
-                      variant="light"
-                    >
-                      <a
-                        href={BILLING_UPGRADE_URL}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Upgrade
-                      </a>
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                {level !== 'free' && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-adam-neutral-200">
-                      Subscription tokens
-                    </span>
-                    <span className="text-xs tabular-nums text-adam-neutral-50">
-                      {subscriptionTokens.toLocaleString()}
-                    </span>
-                  </div>
-                )}
-                {freeTokens > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-adam-neutral-200">
-                      Daily free tokens
-                    </span>
-                    <span className="text-xs tabular-nums text-adam-neutral-50">
-                      {freeTokens.toLocaleString()}
-                    </span>
-                  </div>
-                )}
-                {purchasedTokens > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-adam-neutral-200">
-                      Purchased tokens
-                    </span>
-                    <span className="text-xs tabular-nums text-adam-neutral-50">
-                      {purchasedTokens.toLocaleString()}
-                    </span>
-                  </div>
-                )}
-                <div className="mt-1 flex items-center justify-between border-t border-adam-neutral-800 pt-3">
-                  <span className="text-sm text-adam-neutral-50">
-                    Total available
-                  </span>
-                  <span className="text-sm font-medium tabular-nums text-adam-neutral-50">
-                    {totalTokens.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              {tokenPacks.length > 0 && (
-                <div className="flex flex-col gap-2 border-t border-adam-neutral-800 pt-5">
-                  <div className="flex items-baseline justify-between">
-                    <div className="text-sm text-adam-neutral-50">
-                      Buy more tokens
-                    </div>
-                    <div className="text-xs text-adam-neutral-200">
-                      Never expire
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {tokenPacks.map((pack) => {
-                      const isThisPending =
-                        isPurchaseLoading &&
-                        purchaseVariables?.priceId === pack.stripePriceId;
-                      return (
-                        <button
-                          key={pack.id}
-                          type="button"
-                          disabled={isPurchaseLoading}
-                          onClick={() =>
-                            purchaseTokenPack({ priceId: pack.stripePriceId })
-                          }
-                          className={cn(
-                            'relative flex flex-col items-start rounded-lg border border-adam-neutral-800 bg-adam-background-1 px-3 py-2.5 text-left transition-colors',
-                            'hover:border-adam-blue/40 hover:bg-adam-neutral-800/40',
-                            'disabled:cursor-not-allowed disabled:opacity-50',
-                          )}
-                        >
-                          {isThisPending && (
-                            <Loader2 className="absolute right-2 top-2 h-3.5 w-3.5 animate-spin text-adam-neutral-200" />
-                          )}
-                          <div className="text-sm font-medium tabular-nums text-adam-neutral-50">
-                            {pack.tokenAmount.toLocaleString()}
-                          </div>
-                          <div className="mt-0.5 text-xs tabular-nums text-adam-neutral-200">
-                            ${(pack.priceCents / 100).toFixed(2)}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Data & Privacy — when SSO owns the identity, account deletion is
-              handled in the Adam account ("Manage account" above), so the
-              in-app delete is hidden to avoid a partial, one-sided delete. */}
-          {!ssoManaged && (
-            <section className="rounded-xl border border-adam-neutral-800 bg-adam-background-2 p-6">
-              <h2 className="mb-5 text-sm font-medium text-adam-neutral-50">
-                Data and privacy
-              </h2>
-
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm text-adam-neutral-50">
-                    Delete account
-                  </div>
-                  <div className="mt-0.5 text-xs leading-relaxed text-adam-neutral-200">
-                    Permanently delete your account and all associated data.
-                  </div>
-                </div>
-                <DeleteAccountDialog>
-                  <Button
-                    className="flex-shrink-0 rounded-full font-light"
-                    variant="destructive"
-                  >
-                    Delete
-                  </Button>
-                </DeleteAccountDialog>
-              </div>
-            </section>
-          )}
 
           <div className="mt-2 flex items-center justify-center gap-3 text-xs text-adam-neutral-300">
             <Link

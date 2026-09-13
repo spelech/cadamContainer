@@ -23,6 +23,7 @@ import { Route as AssetsSplatRouteImport } from './routes/assets.$'
 import { Route as ApiTitleGeneratorRouteImport } from './routes/api/title-generator'
 import { Route as ApiPromptGeneratorRouteImport } from './routes/api/prompt-generator'
 import { Route as ApiParametricChatRouteImport } from './routes/api/parametric-chat'
+import { Route as ApiModelsRouteImport } from './routes/api/models'
 import { Route as ApiMessagesRouteImport } from './routes/api/messages'
 import { Route as ApiMeshRouteImport } from './routes/api/mesh'
 import { Route as ApiFalWebhookRouteImport } from './routes/api/fal-webhook'
@@ -114,6 +115,11 @@ const ApiPromptGeneratorRoute = ApiPromptGeneratorRouteImport.update({
 const ApiParametricChatRoute = ApiParametricChatRouteImport.update({
   id: '/api/parametric-chat',
   path: '/api/parametric-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiModelsRoute = ApiModelsRouteImport.update({
+  id: '/api/models',
+  path: '/api/models',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMessagesRoute = ApiMessagesRouteImport.update({
@@ -253,6 +259,7 @@ export interface FileRoutesByFullPath {
   '/api/fal-webhook': typeof ApiFalWebhookRoute
   '/api/mesh': typeof ApiMeshRoute
   '/api/messages': typeof ApiMessagesRoute
+  '/api/models': typeof ApiModelsRoute
   '/api/parametric-chat': typeof ApiParametricChatRoute
   '/api/prompt-generator': typeof ApiPromptGeneratorRoute
   '/api/title-generator': typeof ApiTitleGeneratorRoute
@@ -290,6 +297,7 @@ export interface FileRoutesByTo {
   '/api/fal-webhook': typeof ApiFalWebhookRoute
   '/api/mesh': typeof ApiMeshRoute
   '/api/messages': typeof ApiMessagesRoute
+  '/api/models': typeof ApiModelsRoute
   '/api/parametric-chat': typeof ApiParametricChatRoute
   '/api/prompt-generator': typeof ApiPromptGeneratorRoute
   '/api/title-generator': typeof ApiTitleGeneratorRoute
@@ -329,6 +337,7 @@ export interface FileRoutesById {
   '/api/fal-webhook': typeof ApiFalWebhookRoute
   '/api/mesh': typeof ApiMeshRoute
   '/api/messages': typeof ApiMessagesRoute
+  '/api/models': typeof ApiModelsRoute
   '/api/parametric-chat': typeof ApiParametricChatRoute
   '/api/prompt-generator': typeof ApiPromptGeneratorRoute
   '/api/title-generator': typeof ApiTitleGeneratorRoute
@@ -369,6 +378,7 @@ export interface FileRouteTypes {
     | '/api/fal-webhook'
     | '/api/mesh'
     | '/api/messages'
+    | '/api/models'
     | '/api/parametric-chat'
     | '/api/prompt-generator'
     | '/api/title-generator'
@@ -406,6 +416,7 @@ export interface FileRouteTypes {
     | '/api/fal-webhook'
     | '/api/mesh'
     | '/api/messages'
+    | '/api/models'
     | '/api/parametric-chat'
     | '/api/prompt-generator'
     | '/api/title-generator'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/api/fal-webhook'
     | '/api/mesh'
     | '/api/messages'
+    | '/api/models'
     | '/api/parametric-chat'
     | '/api/prompt-generator'
     | '/api/title-generator'
@@ -481,6 +493,7 @@ export interface RootRouteChildren {
   ApiFalWebhookRoute: typeof ApiFalWebhookRoute
   ApiMeshRoute: typeof ApiMeshRoute
   ApiMessagesRoute: typeof ApiMessagesRoute
+  ApiModelsRoute: typeof ApiModelsRoute
   ApiParametricChatRoute: typeof ApiParametricChatRoute
   ApiPromptGeneratorRoute: typeof ApiPromptGeneratorRoute
   ApiTitleGeneratorRoute: typeof ApiTitleGeneratorRoute
@@ -591,6 +604,13 @@ declare module '@tanstack/react-router' {
       path: '/api/parametric-chat'
       fullPath: '/api/parametric-chat'
       preLoaderRoute: typeof ApiParametricChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/models': {
+      id: '/api/models'
+      path: '/api/models'
+      fullPath: '/api/models'
+      preLoaderRoute: typeof ApiModelsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/messages': {
@@ -822,6 +842,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiFalWebhookRoute: ApiFalWebhookRoute,
   ApiMeshRoute: ApiMeshRoute,
   ApiMessagesRoute: ApiMessagesRoute,
+  ApiModelsRoute: ApiModelsRoute,
   ApiParametricChatRoute: ApiParametricChatRoute,
   ApiPromptGeneratorRoute: ApiPromptGeneratorRoute,
   ApiTitleGeneratorRoute: ApiTitleGeneratorRoute,
