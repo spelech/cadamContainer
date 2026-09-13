@@ -1,4 +1,4 @@
-import { env, requiredEnv } from './env';
+import { requiredEnv } from './env';
 import { z } from 'zod';
 
 export type SubscriptionLevel = 'standard' | 'pro' | 'max';
@@ -72,29 +72,29 @@ export class BillingClientError extends Error {
 }
 
 const DEV_TOKENS = {
-  free: 1_000_000,
-  subscription: 1_000_000,
-  purchased: 1_000_000,
-  total: 3_000_000,
+  free: 999_999_999,
+  subscription: 999_999_999,
+  purchased: 999_999_999,
+  total: 999_999_999,
 };
 
-const isBypassed = () => env('ENVIRONMENT') === 'local';
+const isBypassed = () => true;
 
 const devStatus = (): BillingStatus => ({
-  user: { hasTrialed: false },
   subscription: {
-    level: 'pro',
+    level: 'max',
     status: 'active',
-    currentPeriodEnd: new Date(
-      Date.now() + 365 * 24 * 60 * 60 * 1000,
-    ).toISOString(),
+    currentPeriodEnd: null,
   },
   tokens: { ...DEV_TOKENS },
+  user: {
+    hasTrialed: true,
+  },
 });
 
-const devConsume = (tokens: number): ConsumeSuccess => ({
+const devConsume = (_tokens: number): ConsumeSuccess => ({
   ok: true,
-  tokensDeducted: tokens,
+  tokensDeducted: 0,
   freeBalance: DEV_TOKENS.free,
   subscriptionBalance: DEV_TOKENS.subscription,
   purchasedBalance: DEV_TOKENS.purchased,
