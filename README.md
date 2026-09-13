@@ -22,7 +22,6 @@ Unlike standard Vite apps, this image is **runtime configurable**. You do not ne
 *   `PORT`: Port for the node server (Default: `3000`).
 
 ---
-
 <div align="center">
   <a href="https://adam.new/cadam">
     <img src="./public/cadam-launch.gif" alt="CADAM — text-to-CAD live demo" width="100%">

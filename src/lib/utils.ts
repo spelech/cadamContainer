@@ -246,8 +246,8 @@ export const PARAMETRIC_MODELS: ModelConfig[] = [
     supportsVision: true,
   },
   {
-    id: 'google/gemini-3.6-flash',
-    name: 'Gemini 3.6 Flash',
+    id: 'google/gemini-3.8-flash',
+    name: 'Gemini 3.8 Flash',
     description: 'Fast, token-efficient Google model for everyday tasks',
     provider: 'Google',
     supportsTools: true,
@@ -255,8 +255,8 @@ export const PARAMETRIC_MODELS: ModelConfig[] = [
     supportsVision: true,
   },
   {
-    id: 'anthropic/claude-fable-5',
-    name: 'Claude Fable 5',
+    id: 'anthropic/claude-fable-5.1',
+    name: 'Claude Fable 5.1',
     description: 'Most capable Anthropic model; best reasoning at highest cost',
     provider: 'Anthropic',
     supportsTools: true,
@@ -291,8 +291,8 @@ export const PARAMETRIC_MODELS: ModelConfig[] = [
     supportsVision: true,
   },
   {
-    id: 'x-ai/grok-4.5',
-    name: 'Grok 4.5',
+    id: 'x-ai/grok-4.6',
+    name: 'Grok 4.6',
     description: 'Latest xAI model with frontier coding and STEM performance',
     provider: 'xAI',
     supportsTools: true,
@@ -310,13 +310,32 @@ export const PARAMETRIC_MODELS: ModelConfig[] = [
     supportsVision: true,
   },
   {
-    id: 'z-ai/glm-5.2',
-    name: 'GLM 5.2',
+    id: 'deepseek/deepseek-v4-pro-0813',
+    name: 'DeepSeek V4 Pro',
+    description:
+      'DeepSeek mixture-of-experts model with a 1M-token context at low cost',
+    provider: 'DeepSeek',
+    supportsTools: true,
+    supportsThinking: true,
+    supportsVision: false,
+  },
+  {
+    id: 'z-ai/glm-5.3',
+    name: 'GLM 5.3',
     description: 'Z.AI model with strong agentic coding and reasoning',
     provider: 'Z.AI',
     supportsTools: true,
     supportsThinking: true,
     supportsVision: false,
+  },
+  {
+    id: 'z-ai/glm-5.3-flash',
+    name: 'GLM 5.3 Flash',
+    description: 'Fast, low-cost Z.AI multimodal model for everyday tasks',
+    provider: 'Z.AI',
+    supportsTools: true,
+    supportsThinking: true,
+    supportsVision: true,
   },
 ];
 

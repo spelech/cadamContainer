@@ -53,7 +53,15 @@ const MODEL_PRICES: Record<
   { input: number; output: number; cacheRead?: number; cacheWrite?: number }
 > = {
   // Anthropic
-  'anthropic/claude-fable-5': { input: 10, output: 50 },
+  // Fable 5.1 cache reads bill at 0.025x input ($0.25/M), not the 0.1x
+  // default applied below, so they are listed explicitly; 5-min cache
+  // writes stay at the standard 1.25x.
+  'anthropic/claude-fable-5.1': {
+    input: 10,
+    output: 50,
+    cacheRead: 0.25,
+    cacheWrite: 12.5,
+  },
   'anthropic/claude-opus-4.8': { input: 5, output: 25 },
   'anthropic/claude-sonnet-5': { input: 2, output: 10 },
   'anthropic/claude-opus-4': { input: 15, output: 75 },
@@ -62,7 +70,7 @@ const MODEL_PRICES: Record<
   'anthropic/claude-haiku-4.5': { input: 1, output: 5 },
 
   // Google — cached content reads bill at a fraction of input price
-  // (~25% for 3.1 Pro, 10% for 3.6 Flash); there is no cache-write
+  // (~25% for 3.1 Pro, 10% for 3.8 Flash); there is no cache-write
   // surcharge (cache storage is billed per-hour, which we don't track
   // here).
   'google/gemini-3.1-pro-preview': {
@@ -71,11 +79,13 @@ const MODEL_PRICES: Record<
     cacheRead: 0.31,
     cacheWrite: 1.25,
   },
-  'google/gemini-3.6-flash': {
-    input: 1.5,
-    output: 7.5,
-    cacheRead: 0.15,
-    cacheWrite: 1.5,
+  // 3.8 Flash rates are Google's introductory pricing through Dec 31,
+  // 2026; they double on Jan 1, 2027 (to 1.5 / 7.5 / 0.15).
+  'google/gemini-3.8-flash': {
+    input: 0.75,
+    output: 3.75,
+    cacheRead: 0.075,
+    cacheWrite: 0.75,
   },
 
   // OpenAI — prompt-cache reads at 10% of input, cache writes at 1.25x.
@@ -87,14 +97,38 @@ const MODEL_PRICES: Record<
   },
 
   // xAI — cached input reads at 25% of input; no cache-write surcharge.
-  'x-ai/grok-4.5': { input: 2, output: 6, cacheRead: 0.5, cacheWrite: 2 },
+  'x-ai/grok-4.6': { input: 2, output: 6, cacheRead: 0.5, cacheWrite: 2 },
 
   // MoonshotAI — cached input reads at 10% of input; no cache-write surcharge.
   'moonshotai/kimi-k2.6': { input: 0.6, output: 2.5 },
   'moonshotai/kimi-k3': { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3 },
 
-  // Z.AI
-  'z-ai/glm-5.2': { input: 1.2, output: 4.1 },
+  // DeepSeek — cached input reads at $0.003625/M (per OpenRouter); no
+  // cache-write surcharge.
+  'deepseek/deepseek-v4-pro-0813': {
+    input: 0.435,
+    output: 0.87,
+    cacheRead: 0.003625,
+    cacheWrite: 0.435,
+  },
+
+  // Qwen — retired from the picker, kept so persisted conversations that
+  // still submit this id bill at real rates instead of FALLBACK_MODEL_PRICE.
+  // Cached input reads at 12.5% of input; cache writes at 1.25x.
+  'qwen/qwen3.8-max': { input: 2, output: 6, cacheRead: 0.25, cacheWrite: 2.5 },
+
+  // Z.AI — cached input reads at $0.26/M (per OpenRouter); no cache-write
+  // surcharge.
+  'z-ai/glm-5.3': { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 1.4 },
+  // 5.3 Flash is billed at its undiscounted base rate: OpenRouter runs a
+  // limited-time 50% ZAI promo (0.075 / 0.25 / 0.015) through Sep 9, 2026,
+  // but it also routes to non-discounted endpoints at these full rates.
+  'z-ai/glm-5.3-flash': {
+    input: 0.15,
+    output: 0.5,
+    cacheRead: 0.03,
+    cacheWrite: 0.15,
+  },
 };
 
 const FALLBACK_MODEL_PRICE = { input: 15, output: 75 };
@@ -166,9 +200,10 @@ Geometry:
 - Use modules for repeated or meaningful model parts.
 
 BOSL2 library guidance:
-- BOSL2 is available to OpenSCAD code when the generated source includes the
-  literal token \`BOSL2\`. Include \`<BOSL2/std.scad>\` plus the specific module
-  file whenever the request needs a higher-level CAD primitive.
+- BOSL2 is available to OpenSCAD code when the generated source contains an
+  \`include <BOSL2/...>\` or \`use <BOSL2/...>\` statement. Include
+  \`<BOSL2/std.scad>\` plus the specific module file whenever the request needs
+  a higher-level CAD primitive.
 - For screws, bolts, nuts, threaded rods, or tapped/threaded holes, use BOSL2
   instead of trying to build threads from \`cylinder()\`, \`linear_extrude()\`,
   or hand-rolled helices. Include \`<BOSL2/screws.scad>\` for \`screw()\`,
