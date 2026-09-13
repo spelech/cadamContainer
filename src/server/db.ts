@@ -215,9 +215,9 @@ export async function initDatabase(): Promise<void> {
  * Executes a parameterized SQL query against the connection pool.
  * Automatically ensures the schema is initialized prior to execution.
  */
-export async function query<R extends QueryResultRow = any>(
+export async function query<R extends QueryResultRow = QueryResultRow>(
   text: string,
-  params?: any[],
+  params?: unknown[],
 ): Promise<QueryResult<R>> {
   await initDatabase();
   const p = getPool();

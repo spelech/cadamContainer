@@ -26,7 +26,7 @@ import imageType from 'image-type';
 import { z } from 'zod';
 import { billing, BillingClientError } from './billingClient';
 import { corsHeaders, isRecord } from './api';
-import { env, requiredEnv } from './env';
+import { env } from './env';
 import { logError } from './serverLog';
 import {
   decidePersistAction,

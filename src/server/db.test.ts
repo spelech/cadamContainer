@@ -43,6 +43,7 @@ describe('Database Module (src/server/db.ts)', () => {
       const url = getConnectionString();
       assert.ok(url.startsWith('postgres://'));
       assert.ok(url.includes('cadam'));
+      assert.ok(DEFAULT_DATABASE_URL.startsWith('postgres://'));
     });
 
     it('returns a singleton pool instance', () => {
