@@ -33,3 +33,7 @@ dist-ssr
 # other secret files
 .env.local
 .env.langfuse
+
+# database volume
+db/
+
