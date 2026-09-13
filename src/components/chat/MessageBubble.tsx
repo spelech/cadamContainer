@@ -9,7 +9,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { CREATIVE_MODELS, PARAMETRIC_MODELS } from '@/lib/utils';
+import { CREATIVE_MODELS } from '@/lib/utils';
+import { useAvailableModels } from '@/hooks/useAvailableModels';
 import { Avatar, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -431,8 +432,9 @@ function AssistantBubble({
   onRestore,
 }: MessageBubbleProps) {
   const { conversation } = useConversation();
+  const { models } = useAvailableModels();
   const modelOptions =
-    conversation.type === 'creative' ? CREATIVE_MODELS : PARAMETRIC_MODELS;
+    conversation.type === 'creative' ? CREATIVE_MODELS : models;
   const [expandedTools, setExpandedTools] = useState<Set<number>>(new Set());
   const lastParametricBuildIndex = useMemo(() => {
     if (conversation.type !== 'parametric') return -1;
