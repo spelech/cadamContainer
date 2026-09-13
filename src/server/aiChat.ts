@@ -362,12 +362,29 @@ function jsonResponse(body: unknown, status: number) {
 const THINKING_BUDGET_TOKENS = 9000;
 const PARAMETRIC_MAX_OUTPUT_TOKENS = 64000;
 
+function hasValidApiKey(keyName: string): boolean {
+  const val = env(keyName)?.trim();
+  return Boolean(val && !val.startsWith('your_') && !val.includes('placeholder'));
+}
+
 type ChatProvider = 'anthropic' | 'google' | 'openrouter';
 
 function providerFor(modelId: string): ChatProvider {
-  if (modelId.startsWith('anthropic/')) return 'anthropic';
-  if (modelId.startsWith('google/')) return 'google';
+  // If OPENROUTER_BASE_URL is set (pointing to LiteLLM), or direct keys are missing/placeholders,
+  // route all models through the openrouter/LiteLLM gateway!
+  if (env('OPENROUTER_BASE_URL')) {
+    return 'openrouter';
+  }
+  if (modelId.startsWith('anthropic/') && hasValidApiKey('ANTHROPIC_API_KEY')) return 'anthropic';
+  if (modelId.startsWith('google/') && hasValidApiKey('GOOGLE_API_KEY')) return 'google';
   return 'openrouter';
+}
+
+function normalizeGatewayModelId(modelId: string): string {
+  if (modelId === 'google/gemini-3.8-flash') return 'openrouter/gemini-3.8-flash';
+  if (modelId === 'z-ai/glm-5.3-flash') return 'glm-5.3-flash';
+  if (modelId === 'z-ai/glm-5.3') return 'glm-5.3';
+  return modelId;
 }
 
 type AnthropicProvider = ReturnType<typeof createAnthropic>;
@@ -402,7 +419,7 @@ function createChatProviders(): ChatProviders {
       if (!anthropic) {
         const baseURL = normalizedAnthropicBaseURL();
         anthropic = createAnthropic({
-          apiKey: requiredEnv('ANTHROPIC_API_KEY'),
+          apiKey: env('ANTHROPIC_API_KEY') || 'missing-anthropic-key',
           ...(baseURL ? { baseURL } : {}),
         });
       }
@@ -410,18 +427,34 @@ function createChatProviders(): ChatProviders {
     },
     google: () => {
       google ??= createGoogleGenerativeAI({
-        apiKey: requiredEnv('GOOGLE_API_KEY'),
+        apiKey: env('GOOGLE_API_KEY') || 'missing-google-key',
       });
       return google;
     },
     openrouter: () => {
       openrouter ??= createOpenRouter({
-        apiKey: requiredEnv('OPENROUTER_API_KEY'),
+        apiKey: env('OPENROUTER_API_KEY') || 'missing-openrouter-key',
         baseURL: env('OPENROUTER_BASE_URL') || undefined,
       });
       return openrouter;
     },
   };
+}
+
+function canGenerateAuxiliaryContent(): boolean {
+  return (
+    hasValidApiKey('ANTHROPIC_API_KEY') ||
+    Boolean(env('OPENROUTER_BASE_URL')) ||
+    hasValidApiKey('OPENROUTER_API_KEY')
+  );
+}
+
+function getAuxiliaryModel(providers: ChatProviders): LanguageModel {
+  if (hasValidApiKey('ANTHROPIC_API_KEY') && !env('OPENROUTER_BASE_URL')) {
+    return providers.anthropic()('claude-haiku-4-5');
+  }
+  const modelName = env('OPENROUTER_BASE_URL') ? 'glm-5.3-flash' : 'openrouter/gemini-3.8-flash';
+  return providers.openrouter().chat(modelName);
 }
 
 /**
@@ -442,8 +475,9 @@ function buildChatModel(
     thinking && thinkingBudget !== THINKING_BUDGET_TOKENS;
 
   if (providerFor(modelId) === 'openrouter') {
+    const gatewayModel = normalizeGatewayModelId(modelId);
     return {
-      model: providers.openrouter().chat(modelId, {
+      model: providers.openrouter().chat(gatewayModel, {
         ...(thinking ? { reasoning: { max_tokens: thinkingBudget } } : {}),
         usage: { include: true },
       }),
@@ -777,16 +811,16 @@ async function loadBranchFromDb({
 }
 
 async function generateConversationTitle({
-  anthropic,
+  model,
   firstMessage,
 }: {
-  anthropic: AnthropicProvider;
+  model: LanguageModel;
   firstMessage: AppUIMessage;
 }) {
   const text = getParametricText(firstMessage.parts) || 'New conversation';
   try {
     const result = await generateText({
-      model: anthropic('claude-haiku-4-5'),
+      model,
       system:
         'Generate a short title for a 3D creation conversation. Return only the title.',
       prompt: text,
@@ -809,11 +843,11 @@ async function generateConversationTitle({
  * specific assistant turn.
  */
 async function generateConversationSuggestions({
-  anthropic,
+  model,
   branch,
   conversationType,
 }: {
-  anthropic: AnthropicProvider;
+  model: LanguageModel;
   branch: AppUIMessage[];
   conversationType: 'parametric' | 'creative';
 }): Promise<string[]> {
@@ -831,7 +865,7 @@ async function generateConversationSuggestions({
   const summary = `User request: ${firstUserText.slice(0, 400)}\n\nMost recent assistant reply: ${lastAssistantText.slice(0, 400)}`;
   try {
     const result = await generateText({
-      model: anthropic('claude-haiku-4-5'),
+      model,
       system:
         conversationType === 'creative'
           ? 'Given a 3D mesh design conversation, return an array of exactly 2 follow-up prompts the user might want to send next. Each prompt is a concise instruction of 3 words or fewer, not a question. Return exactly 2 items — no more, no fewer.'
@@ -1426,10 +1460,10 @@ export async function handleAiChatRequest(req: Request) {
     execute: async ({ writer }) => {
       // Title (first user turn only) runs in parallel with the model
       // stream — fire-and-forget; the assistant doesn't wait on it.
-      if (isFirstUserTurn && env('ANTHROPIC_API_KEY')) {
+      if (isFirstUserTurn && canGenerateAuxiliaryContent()) {
         void emitConversationTitle({
           writer,
-          anthropic: providers.anthropic(),
+          model: getAuxiliaryModel(providers),
           conversation,
           firstMessage: branchMessages[0],
         });
@@ -1590,7 +1624,7 @@ export async function handleAiChatRequest(req: Request) {
             // continuation `onFinish` will fire suggestions for the real
             // final state. Avoids a wasted Haiku call AND prevents
             // mid-turn placeholder pills.
-            if (!hasPendingToolCall && env('ANTHROPIC_API_KEY')) {
+            if (!hasPendingToolCall && canGenerateAuxiliaryContent()) {
               // MUST be awaited (not `void`). `createUIMessageStream`
               // closes the SSE controller as soon as the merged stream
               // drains — and the merged stream resolves once this
@@ -1604,7 +1638,7 @@ export async function handleAiChatRequest(req: Request) {
               // tradeoff for getting pills delivered.
               await emitConversationSuggestions({
                 writer,
-                anthropic: providers.anthropic(),
+                model: getAuxiliaryModel(providers),
                 conversation,
                 branch: [
                   ...branchMessages,
@@ -1635,17 +1669,17 @@ export async function handleAiChatRequest(req: Request) {
  */
 async function emitConversationTitle({
   writer,
-  anthropic,
+  model,
   conversation,
   firstMessage,
 }: {
   writer: UIMessageStreamWriter<AppUIMessage>;
-  anthropic: AnthropicProvider;
+  model: LanguageModel;
   conversation: ConversationAccess;
   firstMessage: AppUIMessage;
 }) {
   try {
-    const title = await generateConversationTitle({ anthropic, firstMessage });
+    const title = await generateConversationTitle({ model, firstMessage });
     await query(
       `UPDATE conversations SET title = $1, updated_at = NOW() WHERE id = $2`,
       [title, conversation.id],
@@ -1675,18 +1709,18 @@ async function emitConversationTitle({
  */
 async function emitConversationSuggestions({
   writer,
-  anthropic,
+  model,
   conversation,
   branch,
 }: {
   writer: UIMessageStreamWriter<AppUIMessage>;
-  anthropic: AnthropicProvider;
+  model: LanguageModel;
   conversation: ConversationAccess;
   branch: AppUIMessage[];
 }) {
   try {
     const suggestions = await generateConversationSuggestions({
-      anthropic,
+      model,
       branch,
       conversationType: conversation.type,
     });
