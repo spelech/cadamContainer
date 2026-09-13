@@ -17,6 +17,7 @@ WORKDIR /app
 COPY --from=builder /app/.output ./.output
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/entrypoint.sh ./entrypoint.sh
+COPY --from=builder /app/runtime-inject.mjs ./runtime-inject.mjs
 RUN npm ci --omit=dev --ignore-scripts
 EXPOSE 3000
 ENV PORT=3000
