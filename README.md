@@ -14,14 +14,19 @@ docker pull ghcr.io/spelech/cadamcontainer:latest
 
 Unlike standard Vite apps, this image is **runtime configurable**. You do not need to compile secrets at build time. Pass the following variables to `docker run` or Docker Compose:
 
-*   `VITE_SUPABASE_URL`: Your Supabase Project API URL.
-*   `VITE_SUPABASE_ANON_KEY`: Your Supabase Anonymous Public API Key.
-*   `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase Service Role Key.
-*   `OPENROUTER_API_KEY`: LiteLLM / OpenRouter API Key.
-*   `OPENROUTER_BASE_URL`: Custom API gateway URL (e.g. `http://litellm:4000/v1`).
-*   `PORT`: Port for the node server (Default: `3000`).
+- `DATABASE_URL`: PostgreSQL connection URL (e.g. `postgres://cadam:cadam_secret_pass@cadam-db:5432/cadam`). Backs conversations, messages, user profiles, and binary blob storage (`storage_objects` table for visual inspection previews).
+- `LITELLM_BASE_URL`: LiteLLM API gateway URL (e.g. `http://litellm:4000/v1`, alias `OPENROUTER_BASE_URL`).
+- `LITELLM_API_KEY`: LiteLLM / OpenRouter API Key (alias `OPENROUTER_API_KEY`).
+- `LITELLM_AUXILIARY_MODEL`: Gateway model for background titles and prompt generator (Default: `glm-5.3-flash` or `openrouter/gemini-3.8-flash`).
+- `LITELLM_CREATIVE_MODEL`: Gateway model for creative mesh chat turns.
+- `POCKETID_ISSUER`: SSO OIDC Issuer URL (e.g. `https://sso.wileyriley.com`).
+- `POCKETID_CLIENT_ID`: SSO OIDC Client ID.
+- `POCKETID_CLIENT_SECRET`: SSO OIDC Client Secret.
+- `SESSION_SECRET`: Minimum 32-character secret for signing session cookies.
+- `PORT`: Port for the node server (Default: `3000`).
 
 ---
+
 <div align="center">
   <img src="./public/cadam-launch.gif" alt="CADAM — text-to-CAD live demo" width="100%">
 </div>
