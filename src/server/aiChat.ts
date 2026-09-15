@@ -35,7 +35,7 @@ import {
   resolveDanglingToolParts,
 } from './chatToolPersistence';
 import { handleMeshRequest } from './mesh';
-import { getSessionUser } from './auth';
+import { getSessionUser, type AuthUser } from './auth';
 import { query } from './db';
 
 /**
@@ -404,13 +404,13 @@ function normalizedAnthropicBaseURL(): string | undefined {
   return base.endsWith('/v1') ? base : `${base}/v1`;
 }
 
-type ChatProviders = {
+export type ChatProviders = {
   anthropic: () => AnthropicProvider;
   google: () => GoogleProvider;
   openrouter: () => ReturnType<typeof createOpenRouter>;
 };
 
-function createChatProviders(): ChatProviders {
+export function createChatProviders(user?: AuthUser): ChatProviders {
   let anthropic: AnthropicProvider | undefined;
   let google: GoogleProvider | undefined;
   let openrouter: ReturnType<typeof createOpenRouter> | undefined;
@@ -435,6 +435,7 @@ function createChatProviders(): ChatProviders {
       openrouter ??= createOpenRouter({
         apiKey: env('OPENROUTER_API_KEY') || 'missing-openrouter-key',
         baseURL: env('OPENROUTER_BASE_URL') || undefined,
+        headers: user?.email ? { 'x-litellm-user-id': user.email } : undefined,
       });
       return openrouter;
     },
@@ -449,12 +450,17 @@ function canGenerateAuxiliaryContent(): boolean {
   );
 }
 
-function getAuxiliaryModel(providers: ChatProviders): LanguageModel {
+export function getAuxiliaryModel(
+  providers: ChatProviders,
+  user?: AuthUser,
+): LanguageModel {
   if (hasValidApiKey('ANTHROPIC_API_KEY') && !env('OPENROUTER_BASE_URL')) {
     return providers.anthropic()('claude-haiku-4-5');
   }
   const modelName = env('OPENROUTER_BASE_URL') ? 'glm-5.3-flash' : 'openrouter/gemini-3.8-flash';
-  return providers.openrouter().chat(modelName);
+  return providers.openrouter().chat(modelName, {
+    extraBody: user?.email ? { user: user.email } : undefined,
+  });
 }
 
 /**
@@ -465,11 +471,12 @@ function getAuxiliaryModel(providers: ChatProviders): LanguageModel {
  * Everything else (OpenAI, MoonshotAI, …) keeps going through OpenRouter so we
  * don't have to wire a dedicated provider per vendor.
  */
-function buildChatModel(
+export function buildChatModel(
   modelId: string,
   providers: ChatProviders,
   thinking: boolean,
   thinkingBudget: number = THINKING_BUDGET_TOKENS,
+  user?: AuthUser,
 ): { model: LanguageModel; providerOptions?: ProviderOptions } {
   const hasCappedThinkingBudget =
     thinking && thinkingBudget !== THINKING_BUDGET_TOKENS;
@@ -480,6 +487,7 @@ function buildChatModel(
       model: providers.openrouter().chat(gatewayModel, {
         ...(thinking ? { reasoning: { max_tokens: thinkingBudget } } : {}),
         usage: { include: true },
+        extraBody: user?.email ? { user: user.email } : undefined,
       }),
     };
   }
@@ -1157,7 +1165,7 @@ export async function handleAiChatRequest(req: Request) {
   // provider. Keep this guarded anyway so setup errors return a clear 503.
   let providers: ChatProviders;
   try {
-    providers = createChatProviders();
+    providers = createChatProviders(user);
   } catch (error) {
     logError(error, {
       functionName: 'ai-chat',
@@ -1278,7 +1286,13 @@ export async function handleAiChatRequest(req: Request) {
   let chatLanguageModel: LanguageModel;
   let chatProviderOptions: ProviderOptions | undefined;
   try {
-    const built = buildChatModel(actualModelId, providers, thinkingEnabled);
+    const built = buildChatModel(
+      actualModelId,
+      providers,
+      thinkingEnabled,
+      undefined,
+      user,
+    );
     chatLanguageModel = built.model;
     chatProviderOptions = built.providerOptions;
   } catch (error) {
@@ -1463,7 +1477,7 @@ export async function handleAiChatRequest(req: Request) {
       if (isFirstUserTurn && canGenerateAuxiliaryContent()) {
         void emitConversationTitle({
           writer,
-          model: getAuxiliaryModel(providers),
+          model: getAuxiliaryModel(providers, user),
           conversation,
           firstMessage: branchMessages[0],
         });
@@ -1638,7 +1652,7 @@ export async function handleAiChatRequest(req: Request) {
               // tradeoff for getting pills delivered.
               await emitConversationSuggestions({
                 writer,
-                model: getAuxiliaryModel(providers),
+                model: getAuxiliaryModel(providers, user),
                 conversation,
                 branch: [
                   ...branchMessages,

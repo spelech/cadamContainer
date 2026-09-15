@@ -1,6 +1,6 @@
 # CADAM Benchmarks
 
-A showcase of what [CADAM](https://adam.new/cadam) builds from a single plain-language
+A showcase of what CADAM builds from a single plain-language
 description. Each benchmark starts from the prompt shown and comes out as fully parametric
 OpenSCAD — adjustable dimensions and colours, ready to export as `.STL`, `.SCAD`, or `.DXF`.
 The `.scad` source for each model is included here, so they double as a record of how well
