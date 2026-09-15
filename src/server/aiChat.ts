@@ -973,11 +973,27 @@ async function sniffImageMediaType(bytes: Uint8Array): Promise<string | null> {
   return sniffed && ACCEPTED_IMAGE_MEDIA_TYPES.has(sniffed) ? sniffed : null;
 }
 
-async function downloadAsBase64(
+export async function downloadAsBase64(
   bucket: string,
   path: string,
 ): Promise<{ base64: string; mediaType: string } | null> {
   try {
+    // 1. Check local PostgreSQL storage_objects (standalone self-hosted mode)
+    const { getStorageObject } = await import('./storage');
+    const localObj = await getStorageObject(bucket, path);
+    if (localObj) {
+      const bytes = new Uint8Array(localObj.data);
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let index = 0; index < bytes.length; index += chunkSize) {
+        binary += String.fromCharCode(...bytes.slice(index, index + chunkSize));
+      }
+      const mediaType =
+        (await sniffImageMediaType(bytes)) || localObj.contentType || 'image/png';
+      return { base64: btoa(binary), mediaType };
+    }
+
+    // 2. Fallback to Supabase client if external Supabase is configured
     const { getAnonSupabaseClient } = await import('./supabaseClient');
     const supabaseClient = getAnonSupabaseClient();
     const { data, error } = await supabaseClient.storage

@@ -99,4 +99,19 @@ describe('PostgreSQL Storage Module (src/server/storage.ts)', () => {
     const deleteAgain = await deleteStorageObject('test-bucket', path);
     assert.strictEqual(deleteAgain, false);
   });
+
+  it('downloadAsBase64 rehydrates stored images from PostgreSQL storage', async () => {
+    const { downloadAsBase64 } = await import('./aiChat');
+    const path = 'user-1/conv-1/preview-call-123';
+    const fakePng = Buffer.from('\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDRtestpngbytes', 'binary');
+    await putStorageObject('images', path, fakePng, 'image/png');
+
+    const result = await downloadAsBase64('images', path);
+    assert.ok(result, 'downloadAsBase64 should resolve object');
+    assert.strictEqual(result.mediaType, 'image/png');
+    assert.strictEqual(typeof result.base64, 'string');
+    assert.strictEqual(Buffer.from(result.base64, 'base64').toString('binary'), fakePng.toString('binary'));
+
+    await deleteStorageObject('images', path);
+  });
 });
