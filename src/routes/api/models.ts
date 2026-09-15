@@ -5,6 +5,7 @@ import type { ModelConfig } from '@/types/misc';
 
 export interface RawLiteLLMModel {
   id?: string;
+  model_name?: string;
   name?: string;
   description?: string;
   provider?: string;
@@ -12,6 +13,19 @@ export interface RawLiteLLMModel {
   supportsTools?: boolean;
   supportsThinking?: boolean;
   supportsVision?: boolean;
+  max_output_tokens?: number;
+  max_tokens?: number;
+  maxOutputTokens?: number;
+  model_info?: {
+    max_output_tokens?: number;
+    max_tokens?: number;
+    max_input_tokens?: number;
+    supports_thinking?: boolean;
+    supports_reasoning?: boolean;
+    supports_vision?: boolean;
+    supports_function_calling?: boolean;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 
@@ -101,10 +115,20 @@ export function transformLiteLLMModels(rawModels: unknown[]): ModelConfig[] {
   for (const raw of rawModels) {
     if (!raw || typeof raw !== 'object') continue;
     const item = raw as RawLiteLLMModel;
-    const id = typeof item.id === 'string' ? item.id.trim() : '';
-    if (!id) continue;
+    const rawId =
+      typeof item.id === 'string' && item.id.trim()
+        ? item.id.trim()
+        : typeof item.model_name === 'string' && item.model_name.trim()
+          ? item.model_name.trim()
+          : '';
+    if (!rawId) continue;
+    const id = rawId;
 
     const known = PARAMETRIC_MODELS.find((m) => m.id === id);
+    const info =
+      item.model_info && typeof item.model_info === 'object'
+        ? item.model_info
+        : {};
 
     let provider = item.provider;
     if (!provider && known?.provider) {
@@ -134,17 +158,36 @@ export function transformLiteLLMModels(rawModels: unknown[]): ModelConfig[] {
     const supportsTools =
       typeof item.supportsTools === 'boolean'
         ? item.supportsTools
-        : (known?.supportsTools ?? true);
+        : typeof info.supports_function_calling === 'boolean'
+          ? info.supports_function_calling
+          : (known?.supportsTools ?? true);
 
     const supportsThinking =
       typeof item.supportsThinking === 'boolean'
         ? item.supportsThinking
-        : (known?.supportsThinking ?? true);
+        : typeof info.supports_thinking === 'boolean'
+          ? info.supports_thinking
+          : typeof info.supports_reasoning === 'boolean'
+            ? info.supports_reasoning
+            : (known?.supportsThinking ?? true);
 
     const supportsVision =
       typeof item.supportsVision === 'boolean'
         ? item.supportsVision
-        : (known?.supportsVision ?? true);
+        : typeof info.supports_vision === 'boolean'
+          ? info.supports_vision
+          : (known?.supportsVision ?? true);
+
+    const rawMaxOutput =
+      info.max_output_tokens ??
+      info.max_tokens ??
+      item.max_output_tokens ??
+      item.max_tokens ??
+      item.maxOutputTokens;
+    const maxOutputTokens =
+      typeof rawMaxOutput === 'number' && rawMaxOutput > 0
+        ? rawMaxOutput
+        : known?.maxOutputTokens;
 
     results.push({
       id,
@@ -154,6 +197,7 @@ export function transformLiteLLMModels(rawModels: unknown[]): ModelConfig[] {
       supportsTools,
       supportsThinking,
       supportsVision,
+      maxOutputTokens,
     });
   }
 
@@ -175,18 +219,29 @@ export async function fetchAvailableModels(
     process.env.OPENROUTER_BASE_URL ||
     'http://litellm:4000/v1';
   const baseUrl = rawBaseUrl.replace(/\/+$/, '');
-  const url = `${baseUrl}/models`;
   const apiKey = options?.apiKey || process.env.OPENROUTER_API_KEY || 'sk-none';
   const fetcher = options?.fetchFn || fetch;
 
   try {
-    const res = await fetcher(url, {
+    // Attempt /model/info first to get rich metadata including max_output_tokens
+    let res: Response | null = await fetcher(`${baseUrl}/model/info`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-    });
+    }).catch(() => null);
+
+    // Fallback to /models if /model/info is unavailable, rejected, or unsupported
+    if (!res || !res.ok) {
+      res = await fetcher(`${baseUrl}/models`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+    }
 
     if (!res.ok) {
       throw new Error(`LiteLLM gateway responded with status ${res.status}`);

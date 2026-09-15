@@ -113,11 +113,40 @@ describe('Dynamic LiteLLM Models Discovery', () => {
         fetchFn: mockFetch as unknown as typeof fetch,
       });
 
-      assert.equal(requestedUrl, 'http://litellm-test:4000/v1/models');
+      assert.equal(requestedUrl, 'http://litellm-test:4000/v1/model/info');
       assert.equal(requestedHeaders['Authorization'], 'Bearer sk-test-key');
       assert.equal(models.length, 1);
       assert.equal(models[0].id, 'z-ai/glm-5.3-flash');
       assert.equal(models[0].name, 'GLM 5.3 Flash');
+    });
+
+    it('extracts maxOutputTokens from model_info in /model/info response', async () => {
+      const mockFetch = async () => {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                model_name: 'z-ai/glm-5.3',
+                model_info: {
+                  max_output_tokens: 262144,
+                  max_tokens: 262144,
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      };
+
+      const models = await fetchAvailableModels({
+        baseUrl: 'http://litellm-test:4000/v1',
+        fetchFn: mockFetch as unknown as typeof fetch,
+        forceRefresh: true,
+      });
+
+      assert.equal(models.length, 1);
+      assert.equal(models[0].id, 'z-ai/glm-5.3');
+      assert.equal(models[0].maxOutputTokens, 262144);
     });
 
     it('caches response in-memory and avoids repeat network requests within TTL', async () => {

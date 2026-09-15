@@ -244,6 +244,7 @@ export const PARAMETRIC_MODELS: ModelConfig[] = [
     supportsTools: true,
     supportsThinking: true,
     supportsVision: true,
+    maxOutputTokens: 64000,
   },
   {
     id: 'google/gemini-3.8-flash',
@@ -253,6 +254,7 @@ export const PARAMETRIC_MODELS: ModelConfig[] = [
     supportsTools: true,
     supportsThinking: true,
     supportsVision: true,
+    maxOutputTokens: 64000,
   },
   {
     id: 'anthropic/claude-fable-5.1',
@@ -262,6 +264,7 @@ export const PARAMETRIC_MODELS: ModelConfig[] = [
     supportsTools: true,
     supportsThinking: true,
     supportsVision: true,
+    maxOutputTokens: 64000,
   },
   {
     id: 'anthropic/claude-opus-4.8',
@@ -271,6 +274,7 @@ export const PARAMETRIC_MODELS: ModelConfig[] = [
     supportsTools: true,
     supportsThinking: true,
     supportsVision: true,
+    maxOutputTokens: 64000,
   },
   {
     id: 'anthropic/claude-sonnet-5',
@@ -280,6 +284,7 @@ export const PARAMETRIC_MODELS: ModelConfig[] = [
     supportsTools: true,
     supportsThinking: true,
     supportsVision: true,
+    maxOutputTokens: 64000,
   },
   {
     id: 'openai/gpt-5.6-sol',
@@ -289,6 +294,7 @@ export const PARAMETRIC_MODELS: ModelConfig[] = [
     supportsTools: true,
     supportsThinking: true,
     supportsVision: true,
+    maxOutputTokens: 128000,
   },
   {
     id: 'x-ai/grok-4.6',
@@ -298,6 +304,7 @@ export const PARAMETRIC_MODELS: ModelConfig[] = [
     supportsTools: true,
     supportsThinking: true,
     supportsVision: true,
+    maxOutputTokens: 131072,
   },
   {
     id: 'moonshotai/kimi-k3',
@@ -308,6 +315,7 @@ export const PARAMETRIC_MODELS: ModelConfig[] = [
     supportsTools: true,
     supportsThinking: true,
     supportsVision: true,
+    maxOutputTokens: 131072,
   },
   {
     id: 'deepseek/deepseek-v4-pro-0813',
@@ -318,6 +326,7 @@ export const PARAMETRIC_MODELS: ModelConfig[] = [
     supportsTools: true,
     supportsThinking: true,
     supportsVision: false,
+    maxOutputTokens: 131072,
   },
   {
     id: 'z-ai/glm-5.3',
@@ -327,6 +336,7 @@ export const PARAMETRIC_MODELS: ModelConfig[] = [
     supportsTools: true,
     supportsThinking: true,
     supportsVision: false,
+    maxOutputTokens: 262144,
   },
   {
     id: 'z-ai/glm-5.3-flash',
@@ -336,6 +346,7 @@ export const PARAMETRIC_MODELS: ModelConfig[] = [
     supportsTools: true,
     supportsThinking: true,
     supportsVision: true,
+    maxOutputTokens: 131072,
   },
 ];
 
