@@ -24,6 +24,7 @@ export interface ModelConfig {
   supportsTools?: boolean;
   supportsThinking?: boolean;
   supportsVision?: boolean;
+  maxOutputTokens?: number;
 }
 
 export interface MessageItem {

@@ -36,6 +36,7 @@ import {
 import { handleMeshRequest } from './mesh';
 import { getSessionUser, type AuthUser } from './auth';
 import { query } from './db';
+import { fetchAvailableModels } from '@/routes/api/models';
 
 /**
  * USD list price per **million** tokens, keyed by the same model IDs the
@@ -1334,6 +1335,16 @@ export async function handleAiChatRequest(req: Request) {
     leafRole === 'user' &&
     !forceBuildToolChoice;
 
+  // Dynamically resolve model capacity from LiteLLM / gateway discovery
+  const availableModels = await fetchAvailableModels().catch(() => []);
+  const matchedModel = availableModels.find(
+    (m) =>
+      m.id === actualModelId ||
+      m.id.endsWith(`/${actualModelId}`) ||
+      actualModelId.endsWith(`/${m.id}`),
+  );
+  const dynamicMaxTokens = matchedModel?.maxOutputTokens;
+
   const result = streamText({
     model: chatLanguageModel,
     providerOptions: chatProviderOptions,
@@ -1376,17 +1387,15 @@ export async function handleAiChatRequest(req: Request) {
       return {};
     },
     stopWhen: stepCountIs(conversation.type === 'parametric' ? 60 : 5),
-    // Thinking and visible response tokens share this pool. With adaptive
-    // thinking now always-on for Claude 5 / 4.6+, a heavy reasoning turn can
-    // spend 10k+ tokens before the answer starts — 32k keeps the visible
-    // response from getting squeezed. We stream, so SDK HTTP timeouts aren't
-    // a concern at this size.
+    // Dynamically scaled max output tokens honoring LiteLLM metadata.
+    // Falling back to 64k for parametric and 32k/16k for text when unspecified.
     maxOutputTokens:
-      conversation.type === 'parametric'
+      dynamicMaxTokens ??
+      (conversation.type === 'parametric'
         ? PARAMETRIC_MAX_OUTPUT_TOKENS
         : thinkingEnabled
           ? 32000
-          : 16000,
+          : 16000),
     abortSignal: req.signal,
     // Without this, provider errors mid-stream become silent `error`
     // parts on the SSE stream — never logged, never visible in

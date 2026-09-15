@@ -1,7 +1,7 @@
 {
   "name": "vite-react-typescript-starter",
   "private": true,
-  "version": "0.3.3",
+  "version": "0.4.0",
   "type": "module",
   "engines": {
     "node": "^20.19.0 || >=22.12.0",
@@ -68,6 +68,7 @@
     "@tanstack/react-query": "^5.64.2",
     "@tanstack/react-router": "^1.169.2",
     "@tanstack/react-start": "^1.167.65",
+    "@tanstack/react-virtual": "^3.14.13",
     "@types/omggif": "^1.0.5",
     "@types/three": "^0.160.0",
     "@zip.js/zip.js": "^2.7.63",
