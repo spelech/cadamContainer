@@ -14,7 +14,6 @@ import {
   createUIMessageStreamResponse,
   generateText,
   Output,
-  smoothStream,
   stepCountIs,
   streamText,
   type LanguageModel,
@@ -485,7 +484,9 @@ export function buildChatModel(
     const gatewayModel = normalizeGatewayModelId(modelId);
     return {
       model: providers.openrouter().chat(gatewayModel, {
-        ...(thinking ? { reasoning: { max_tokens: thinkingBudget } } : {}),
+        reasoning: {
+          max_tokens: thinking ? thinkingBudget : Math.min(thinkingBudget, 4000),
+        },
         usage: { include: true },
         extraBody: user?.email ? { user: user.email } : undefined,
       }),
@@ -1389,13 +1390,6 @@ export async function handleAiChatRequest(req: Request) {
           ? 32000
           : 16000,
     abortSignal: req.signal,
-    // Decouple our render cadence from the provider's native chunking.
-    // OpenRouter (and the underlying provider) sometimes emits text in
-    // paragraph-sized frames; smoothStream rebuckets the deltas into
-    // word-sized chunks at a steady cadence so the chat panel reads
-    // word-by-word the way the rest of the AI ecosystem does. Default
-    // delay is 10ms — bumped to 30ms for a more readable cadence.
-    experimental_transform: smoothStream({ delayInMs: 30 }),
     // Without this, provider errors mid-stream become silent `error`
     // parts on the SSE stream — never logged, never visible in
     // production. This is the primary observability hook for "the model
