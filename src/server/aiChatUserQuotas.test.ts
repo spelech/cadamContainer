@@ -115,5 +115,20 @@ describe('LiteLLM User Quota Attribution in aiChat', () => {
         .settings;
       assert.strictEqual(settings.extraBody, undefined);
     });
+
+    it('works when configured via LITELLM_BASE_URL instead of OPENROUTER_BASE_URL', () => {
+      delete process.env.OPENROUTER_BASE_URL;
+      process.env.LITELLM_BASE_URL = 'http://litellm-alt:4000/v1';
+      try {
+        const providers = createChatProviders(testUser);
+        const model = getAuxiliaryModel(providers, testUser);
+        const settings = (model as unknown as { settings: { extraBody?: Record<string, unknown> } })
+          .settings;
+        assert.deepStrictEqual(settings.extraBody, { user: 'quota-tester@example.com' });
+      } finally {
+        delete process.env.LITELLM_BASE_URL;
+        process.env.OPENROUTER_BASE_URL = 'http://litellm:4000/v1';
+      }
+    });
   });
 });

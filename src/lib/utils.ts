@@ -374,7 +374,14 @@ export const CREATIVE_MODELS: ModelConfig[] = [
 // Whether the selected parametric model can accept image / STL-render inputs.
 // Unknown ids (e.g. historical messages tagged with a removed model) fall back
 // to `true` so older saved rows still render normally.
-export function parametricModelSupportsVision(modelId: string): boolean {
-  const cfg = PARAMETRIC_MODELS.find((m) => m.id === modelId);
+export function parametricModelSupportsVision(
+  modelId: string,
+  availableModels?: ModelConfig[],
+): boolean {
+  const models =
+    availableModels && availableModels.length > 0
+      ? availableModels
+      : PARAMETRIC_MODELS;
+  const cfg = models.find((m) => m.id === modelId);
   return cfg?.supportsVision !== false;
 }

@@ -370,9 +370,9 @@ function hasValidApiKey(keyName: string): boolean {
 type ChatProvider = 'anthropic' | 'google' | 'openrouter';
 
 function providerFor(modelId: string): ChatProvider {
-  // If OPENROUTER_BASE_URL is set (pointing to LiteLLM), or direct keys are missing/placeholders,
+  // If LITELLM_BASE_URL or OPENROUTER_BASE_URL is set (pointing to LiteLLM), or direct keys are missing/placeholders,
   // route all models through the openrouter/LiteLLM gateway!
-  if (env('OPENROUTER_BASE_URL')) {
+  if (env('LITELLM_BASE_URL') || env('OPENROUTER_BASE_URL')) {
     return 'openrouter';
   }
   if (modelId.startsWith('anthropic/') && hasValidApiKey('ANTHROPIC_API_KEY')) return 'anthropic';
@@ -433,8 +433,14 @@ export function createChatProviders(user?: AuthUser): ChatProviders {
     },
     openrouter: () => {
       openrouter ??= createOpenRouter({
-        apiKey: env('OPENROUTER_API_KEY') || 'missing-openrouter-key',
-        baseURL: env('OPENROUTER_BASE_URL') || undefined,
+        apiKey:
+          env('LITELLM_API_KEY') ||
+          env('OPENROUTER_API_KEY') ||
+          'missing-openrouter-key',
+        baseURL:
+          env('LITELLM_BASE_URL') ||
+          env('OPENROUTER_BASE_URL') ||
+          undefined,
         headers: user?.email ? { 'x-litellm-user-id': user.email } : undefined,
       });
       return openrouter;
@@ -444,9 +450,11 @@ export function createChatProviders(user?: AuthUser): ChatProviders {
 
 function canGenerateAuxiliaryContent(): boolean {
   return (
-    hasValidApiKey('ANTHROPIC_API_KEY') ||
+    Boolean(env('LITELLM_BASE_URL')) ||
+    hasValidApiKey('LITELLM_API_KEY') ||
     Boolean(env('OPENROUTER_BASE_URL')) ||
-    hasValidApiKey('OPENROUTER_API_KEY')
+    hasValidApiKey('OPENROUTER_API_KEY') ||
+    hasValidApiKey('ANTHROPIC_API_KEY')
   );
 }
 
@@ -454,10 +462,18 @@ export function getAuxiliaryModel(
   providers: ChatProviders,
   user?: AuthUser,
 ): LanguageModel {
-  if (hasValidApiKey('ANTHROPIC_API_KEY') && !env('OPENROUTER_BASE_URL')) {
+  if (
+    hasValidApiKey('ANTHROPIC_API_KEY') &&
+    !env('LITELLM_BASE_URL') &&
+    !env('OPENROUTER_BASE_URL')
+  ) {
     return providers.anthropic()('claude-haiku-4-5');
   }
-  const modelName = env('OPENROUTER_BASE_URL') ? 'glm-5.3-flash' : 'openrouter/gemini-3.8-flash';
+  const modelName =
+    env('LITELLM_AUXILIARY_MODEL') ||
+    (env('OPENROUTER_BASE_URL') || env('LITELLM_BASE_URL')
+      ? 'glm-5.3-flash'
+      : 'openrouter/gemini-3.8-flash');
   return providers.openrouter().chat(modelName, {
     extraBody: user?.email ? { user: user.email } : undefined,
   });
@@ -1067,7 +1083,9 @@ function parametricTools({
 
 function chatModel(conversation: ConversationAccess, model: Model) {
   if (conversation.type === 'creative') {
-    return 'anthropic/claude-sonnet-4.5';
+    return model
+      ? normalizeModelId(model)
+      : env('LITELLM_CREATIVE_MODEL') || 'anthropic/claude-sonnet-4.5';
   }
   return normalizeModelId(model);
 }
