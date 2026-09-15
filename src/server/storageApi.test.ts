@@ -27,6 +27,18 @@ const { query, closePool, initDatabase } = await import('./db');
 const { signSession } = await import('./auth');
 const { Route } = await import('../routes/api/storage/$');
 
+type RouteHandler = (args: { request: Request }) => Promise<Response>;
+
+function getHandler(
+  route: { options: { server?: { handlers?: unknown } } },
+  method: string,
+): RouteHandler {
+  const handlers = route.options.server?.handlers as
+    | Record<string, RouteHandler>
+    | undefined;
+  return handlers?.[method] as RouteHandler;
+}
+
 describe('Storage API Route (src/routes/api/storage/$.ts)', () => {
   let sessionCookie: string;
   const testUserId = '11111111-2222-3333-4444-555555555555';
@@ -45,7 +57,7 @@ describe('Storage API Route (src/routes/api/storage/$.ts)', () => {
     const token = signSession({
       id: testUserId,
       email: 'storage-tester@example.com',
-      displayName: 'Storage Tester',
+      display_name: 'Storage Tester',
     });
     sessionCookie = `cadam_session=${token}`;
   });
@@ -63,8 +75,9 @@ describe('Storage API Route (src/routes/api/storage/$.ts)', () => {
       headers: { 'Content-Type': 'image/png' },
     });
 
-    const handler = Route.options.server!.handlers!.POST!;
-    const res = await handler({ request: req } as never);
+    const handler = getHandler(Route, 'POST');
+    assert.ok(handler, 'POST handler should exist');
+    const res = await handler({ request: req });
     assert.strictEqual(res.status, 401);
   });
 
@@ -79,8 +92,9 @@ describe('Storage API Route (src/routes/api/storage/$.ts)', () => {
       },
     });
 
-    const handler = Route.options.server!.handlers!.POST!;
-    const res = await handler({ request: req } as never);
+    const handler = getHandler(Route, 'POST');
+    assert.ok(handler, 'POST handler should exist');
+    const res = await handler({ request: req });
     assert.strictEqual(res.status, 200);
 
     const json = (await res.json()) as { key: string };
@@ -92,8 +106,9 @@ describe('Storage API Route (src/routes/api/storage/$.ts)', () => {
       method: 'GET',
     });
 
-    const handler = Route.options.server!.handlers!.GET!;
-    const res = await handler({ request: req } as never);
+    const handler = getHandler(Route, 'GET');
+    assert.ok(handler, 'GET handler should exist');
+    const res = await handler({ request: req });
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.headers.get('Content-Type'), 'image/png');
 
@@ -106,8 +121,9 @@ describe('Storage API Route (src/routes/api/storage/$.ts)', () => {
       method: 'GET',
     });
 
-    const handler = Route.options.server!.handlers!.GET!;
-    const res = await handler({ request: req } as never);
+    const handler = getHandler(Route, 'GET');
+    assert.ok(handler, 'GET handler should exist');
+    const res = await handler({ request: req });
     assert.strictEqual(res.status, 404);
   });
 
@@ -117,14 +133,16 @@ describe('Storage API Route (src/routes/api/storage/$.ts)', () => {
       headers: { Cookie: sessionCookie },
     });
 
-    const handler = Route.options.server!.handlers!.DELETE!;
-    const res = await handler({ request: req } as never);
+    const handler = getHandler(Route, 'DELETE');
+    assert.ok(handler, 'DELETE handler should exist');
+    const res = await handler({ request: req });
     assert.strictEqual(res.status, 200);
 
     const getReq = new Request('http://localhost:3000/api/storage/test-api-bucket/folder/test.png', {
       method: 'GET',
     });
-    const getRes = await Route.options.server!.handlers!.GET!({ request: getReq } as never);
+    const getHandlerFn = getHandler(Route, 'GET');
+    const getRes = await getHandlerFn({ request: getReq });
     assert.strictEqual(getRes.status, 404);
   });
 });

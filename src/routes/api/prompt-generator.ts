@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { createAnthropicText } from '@/server/anthropic';
+import { generateGatewayText } from '@/server/llmGateway';
 import {
   isRecord,
   isUnauthorizedError,
@@ -22,7 +22,7 @@ export const Route = createFileRoute('/api/prompt-generator')({
       OPTIONS: preflight,
       POST: async ({ request }) => {
         try {
-          await requireUser(request);
+          const user = await requireUser(request);
           const body = await request.json().catch(() => ({}));
           if (!isRecord(body)) {
             return json({ error: 'invalid_request' }, 400);
@@ -40,12 +40,12 @@ export const Route = createFileRoute('/api/prompt-generator')({
           const content = existingText
             ? `${base}\n\nImprove this existing prompt while preserving its intent:\n${existingText}`
             : base;
-          const prompt = await createAnthropicText({
-            model: 'claude-haiku-4-5-20251001',
+          const prompt = await generateGatewayText({
             maxTokens: 200,
             system:
               'You write concise 3D generation prompts. Return only the prompt text, no quotes or explanation.',
             content,
+            userEmail: user?.email,
           });
           return json({ prompt });
         } catch (err) {

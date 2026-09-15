@@ -36,6 +36,7 @@ import { Route as ApiBillingCheckoutRouteImport } from './routes/api/billing-che
 import { Route as LayoutSubscriptionRouteImport } from './routes/_layout/subscription'
 import { Route as LayoutAuthRouteImport } from './routes/_layout/_auth'
 import { Route as LayoutSplatRouteImport } from './routes/_layout/$'
+import { Route as ApiStorageSplatRouteImport } from './routes/api/storage/$'
 import { Route as ApiJacksonPollockSplatRouteImport } from './routes/api/jackson-pollock/$'
 import { Route as ApiConversationsIdRouteImport } from './routes/api/conversations/$id'
 import { Route as ApiAuthMeRouteImport } from './routes/api/auth/me'
@@ -181,6 +182,11 @@ const LayoutSplatRoute = LayoutSplatRouteImport.update({
   path: '/$',
   getParentRoute: () => LayoutRoute,
 } as any)
+const ApiStorageSplatRoute = ApiStorageSplatRouteImport.update({
+  id: '/api/storage/$',
+  path: '/api/storage/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiJacksonPollockSplatRoute = ApiJacksonPollockSplatRouteImport.update({
   id: '/api/jackson-pollock/$',
   path: '/api/jackson-pollock/$',
@@ -273,6 +279,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/me': typeof ApiAuthMeRoute
   '/api/conversations/$id': typeof ApiConversationsIdRoute
   '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute
+  '/api/storage/$': typeof ApiStorageSplatRoute
   '/editor/$id': typeof LayoutAuthEditorIdRoute
   '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute
 }
@@ -311,6 +318,7 @@ export interface FileRoutesByTo {
   '/api/auth/me': typeof ApiAuthMeRoute
   '/api/conversations/$id': typeof ApiConversationsIdRoute
   '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute
+  '/api/storage/$': typeof ApiStorageSplatRoute
   '/editor/$id': typeof LayoutAuthEditorIdRoute
   '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute
 }
@@ -352,6 +360,7 @@ export interface FileRoutesById {
   '/api/auth/me': typeof ApiAuthMeRoute
   '/api/conversations/$id': typeof ApiConversationsIdRoute
   '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute
+  '/api/storage/$': typeof ApiStorageSplatRoute
   '/_layout/_auth/editor/$id': typeof LayoutAuthEditorIdRoute
   '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute
 }
@@ -392,6 +401,7 @@ export interface FileRouteTypes {
     | '/api/auth/me'
     | '/api/conversations/$id'
     | '/api/jackson-pollock/$'
+    | '/api/storage/$'
     | '/editor/$id'
     | '/api/internal/account/delete'
   fileRoutesByTo: FileRoutesByTo
@@ -430,6 +440,7 @@ export interface FileRouteTypes {
     | '/api/auth/me'
     | '/api/conversations/$id'
     | '/api/jackson-pollock/$'
+    | '/api/storage/$'
     | '/editor/$id'
     | '/api/internal/account/delete'
   id:
@@ -470,6 +481,7 @@ export interface FileRouteTypes {
     | '/api/auth/me'
     | '/api/conversations/$id'
     | '/api/jackson-pollock/$'
+    | '/api/storage/$'
     | '/_layout/_auth/editor/$id'
     | '/api/internal/account/delete'
   fileRoutesById: FileRoutesById
@@ -503,6 +515,7 @@ export interface RootRouteChildren {
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthMeRoute: typeof ApiAuthMeRoute
   ApiJacksonPollockSplatRoute: typeof ApiJacksonPollockSplatRoute
+  ApiStorageSplatRoute: typeof ApiStorageSplatRoute
   ApiInternalAccountDeleteRoute: typeof ApiInternalAccountDeleteRoute
 }
 
@@ -697,6 +710,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutSplatRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/api/storage/$': {
+      id: '/api/storage/$'
+      path: '/api/storage/$'
+      fullPath: '/api/storage/$'
+      preLoaderRoute: typeof ApiStorageSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/jackson-pollock/$': {
       id: '/api/jackson-pollock/$'
       path: '/api/jackson-pollock/$'
@@ -852,6 +872,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthMeRoute: ApiAuthMeRoute,
   ApiJacksonPollockSplatRoute: ApiJacksonPollockSplatRoute,
+  ApiStorageSplatRoute: ApiStorageSplatRoute,
   ApiInternalAccountDeleteRoute: ApiInternalAccountDeleteRoute,
 }
 export const routeTree = rootRouteImport
