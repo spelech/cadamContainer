@@ -23,9 +23,7 @@ Unlike standard Vite apps, this image is **runtime configurable**. You do not ne
 
 ---
 <div align="center">
-  <a href="https://adam.new/cadam">
-    <img src="./public/cadam-launch.gif" alt="CADAM — text-to-CAD live demo" width="100%">
-  </a>
+  <img src="./public/cadam-launch.gif" alt="CADAM — text-to-CAD live demo" width="100%">
 </div>
 
 <div align="center">
@@ -47,7 +45,6 @@ Unlike standard Vite apps, this image is **runtime configurable**. You do not ne
 [![React](https://img.shields.io/badge/React-19.1-61DAFB.svg?style=flat&logo=react&logoColor=black)](https://reactjs.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E.svg?style=flat&logo=supabase&logoColor=white)](https://supabase.com/)
 [![OpenSCAD](https://img.shields.io/badge/OpenSCAD-WASM-F9D64F.svg?style=flat)](https://openscad.org/)
-[![Website](https://img.shields.io/badge/website-adam.new-blue?style=flat)](https://adam.new)
 [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.com/invite/HKdXDqAHCs)
 [![Follow Zach Dive](https://img.shields.io/badge/Follow-Zach%20Dive-1DA1F2?style=flat&logo=x&logoColor=white)](https://x.com/zachdive)
 [![Follow Aaron Li](https://img.shields.io/badge/Follow-Aaron%20Li-1DA1F2?style=flat&logo=x&logoColor=white)](https://x.com/aaronhetengli)
@@ -57,9 +54,9 @@ Unlike standard Vite apps, this image is **runtime configurable**. You do not ne
 
 ---
 
-## 🌐 Try it live
+## 🌐 Self-Hosted Deployment
 
-**👉 [adam.new/cadam](https://adam.new/cadam)**. Generate a CAD model in seconds, right in your browser. No install required.
+CADAM is 100% self-hosted and open source. Generate CAD models in seconds directly in your browser with Docker or Docker Compose, with no client installation required.
 
 ## ✨ Features
 
