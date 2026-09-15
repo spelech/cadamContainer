@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { createAnthropicText } from '@/server/anthropic';
+import { generateGatewayText } from '@/server/llmGateway';
 import {
   isRecord,
   isUnauthorizedError,
@@ -31,8 +31,9 @@ export const Route = createFileRoute('/api/title-generator')({
       GET: methodNotAllowed,
       OPTIONS: preflight,
       POST: async ({ request }) => {
+        let user;
         try {
-          await requireUser(request);
+          user = await requireUser(request);
         } catch (err) {
           if (isUnauthorizedError(err)) {
             return json({ error: 'Unauthorized' }, 401);
@@ -49,11 +50,11 @@ export const Route = createFileRoute('/api/title-generator')({
           const text = trimmedText || textFromParts(body.parts);
           if (!text) return json({ title: 'New Conversation' });
 
-          const title = await createAnthropicText({
-            model: 'claude-haiku-4-5-20251001',
+          const title = await generateGatewayText({
             maxTokens: 100,
             system: TITLE_SYSTEM_PROMPT,
             content: text,
+            userEmail: user?.email,
           });
           return json({ title: title || 'New Conversation' });
         } catch {

@@ -179,6 +179,20 @@ CREATE OR REPLACE FUNCTION set_conversation_suggestions(
   WHERE id = p_conversation_id;
 $$;
 
+CREATE TABLE IF NOT EXISTS storage_objects (
+  bucket TEXT NOT NULL,
+  path TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  data BYTEA NOT NULL,
+  size_bytes BIGINT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (bucket, path)
+);
+
+CREATE INDEX IF NOT EXISTS storage_objects_bucket_idx ON storage_objects(bucket);
+CREATE INDEX IF NOT EXISTS storage_objects_created_at_idx ON storage_objects(created_at);
+
 COMMIT;
 `;
 

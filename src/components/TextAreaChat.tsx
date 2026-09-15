@@ -1596,7 +1596,7 @@ function TextAreaChat({
         <div className="flex items-center justify-between border-t border-[#2a2a2a] p-3">
           <div className="flex items-center gap-1">
             {(type !== 'parametric' ||
-              parametricModelSupportsVision(model)) && (
+              parametricModelSupportsVision(model, models)) && (
               <div
                 className={cn(
                   'transition-all duration-300 ease-out',
