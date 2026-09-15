@@ -484,9 +484,7 @@ export function buildChatModel(
     const gatewayModel = normalizeGatewayModelId(modelId);
     return {
       model: providers.openrouter().chat(gatewayModel, {
-        reasoning: {
-          max_tokens: thinking ? thinkingBudget : Math.min(thinkingBudget, 4000),
-        },
+        ...(thinking ? { reasoning: { max_tokens: thinkingBudget } } : {}),
         usage: { include: true },
         extraBody: user?.email ? { user: user.email } : undefined,
       }),
