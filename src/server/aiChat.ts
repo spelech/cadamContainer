@@ -38,6 +38,10 @@ import { getSessionUser, type AuthUser } from './auth';
 import { query } from './db';
 import { fetchAvailableModels } from '@/routes/api/models';
 import type { ReasoningEffort } from '@/types/misc';
+import {
+  createHeartbeatManager,
+  type HeartbeatManager,
+} from './serverHeartbeat';
 
 export function effortToTokens(effort?: ReasoningEffort): number {
   switch (effort) {
@@ -1554,6 +1558,7 @@ export async function handleAiChatRequest(req: Request) {
   // assistant message stream. The transient parts never land in
   // `messages.parts`; the client picks them up via `useChat`'s `onData`
   // and pokes the conversation query cache directly.
+  let heartbeat: HeartbeatManager | undefined;
   const stream = createUIMessageStream<AppUIMessage>({
     // `onError` runs for anything thrown inside `execute` OR inside the
     // merged streamText output. Without overriding it, the AI SDK
@@ -1562,6 +1567,7 @@ export async function handleAiChatRequest(req: Request) {
     // useless for debugging. Log here and pass through a short message
     // to the client so the failure is visible in the UI too.
     onError: (error) => {
+      heartbeat?.stop();
       logError(error, {
         functionName: 'ai-chat',
         statusCode: 500,
@@ -1576,6 +1582,20 @@ export async function handleAiChatRequest(req: Request) {
       return `Model call failed (${resolvedProvider}/${actualModelId}): ${message}`;
     },
     execute: async ({ writer }) => {
+      heartbeat = createHeartbeatManager(() => {
+        try {
+          writer.write({
+            transient: true,
+            type: 'data-keepalive',
+            data: { timestamp: Date.now() },
+          });
+        } catch {
+          // ignore write errors on closed stream
+        }
+      }, 15000);
+
+      req.signal.addEventListener('abort', () => heartbeat?.stop());
+
       // Title (first user turn only) runs in parallel with the model
       // stream — fire-and-forget; the assistant doesn't wait on it.
       if (isFirstUserTurn && canGenerateAuxiliaryContent()) {
@@ -1592,6 +1612,7 @@ export async function handleAiChatRequest(req: Request) {
           originalMessages: branchMessages,
           generateMessageId: () => crypto.randomUUID(),
           onFinish: async ({ responseMessage, isContinuation }) => {
+            heartbeat?.stop();
             const usage = await result.totalUsage;
             const billingTokens = billingTokensFromUsage(actualModelId, usage);
             const metadata = {
