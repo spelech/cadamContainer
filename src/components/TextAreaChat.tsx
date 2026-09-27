@@ -50,6 +50,9 @@ import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { ModelSelector } from '@/components/ModelSelector';
+import { ReasoningEffortSelector } from '@/components/chat/ReasoningEffortSelector';
+import type { ReasoningEffort } from '@/types/misc';
+import { useReasoningEffort } from '@/hooks/useReasoningEffort';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar } from '@/components/ui/avatar';
@@ -77,6 +80,8 @@ interface TextAreaChatProps {
   disabled?: boolean;
   model: Model;
   setModel: (model: Model) => void;
+  reasoningEffort?: ReasoningEffort;
+  onReasoningEffortChange?: (effort: ReasoningEffort) => void;
   showPromptGenerator?: boolean;
   showFullLabels?: boolean; // Controls whether to show full text labels on buttons
   onTypeChange?: (type: 'parametric' | 'creative') => void;
@@ -469,6 +474,8 @@ function TextAreaChat({
   disabled = false,
   model,
   setModel,
+  reasoningEffort: controlledEffort,
+  onReasoningEffortChange: controlledSetEffort,
   showPromptGenerator = false,
   showFullLabels = false,
   onTypeChange,
@@ -660,6 +667,16 @@ function TextAreaChat({
     }
     return models;
   }, [type, models]);
+
+  const selectedModelConfig = useMemo(
+    () => memoizedModels.find((m) => m.id === model),
+    [memoizedModels, model],
+  );
+
+  const internalReasoning = useReasoningEffort(model, selectedModelConfig);
+  const reasoningEffort = controlledEffort ?? internalReasoning.reasoningEffort;
+  const onReasoningEffortChange =
+    controlledSetEffort ?? internalReasoning.setReasoningEffort;
 
   // ------------------------------------------------------------
   // Placeholder – Typed-out Animation
@@ -1693,6 +1710,13 @@ function TextAreaChat({
               selectedModel={model}
               onModelChange={setModel}
               type={type}
+              focused={isFocused}
+            />
+            <ReasoningEffortSelector
+              disabled={isLoading || disabled}
+              modelConfig={selectedModelConfig}
+              selectedEffort={reasoningEffort}
+              onEffortChange={onReasoningEffortChange}
               focused={isFocused}
             />
             {/* Enhanced submit button */}
