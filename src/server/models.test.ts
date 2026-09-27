@@ -78,8 +78,14 @@ describe('Dynamic LiteLLM Models Discovery', () => {
 
     it('returns empty array when input is empty or invalid', () => {
       assert.deepEqual(transformLiteLLMModels([]), []);
-      assert.deepEqual(transformLiteLLMModels(null as unknown as unknown[]), []);
-      assert.deepEqual(transformLiteLLMModels(undefined as unknown as unknown[]), []);
+      assert.deepEqual(
+        transformLiteLLMModels(null as unknown as unknown[]),
+        [],
+      );
+      assert.deepEqual(
+        transformLiteLLMModels(undefined as unknown as unknown[]),
+        [],
+      );
     });
   });
 
@@ -88,7 +94,10 @@ describe('Dynamic LiteLLM Models Discovery', () => {
       let requestedUrl = '';
       let requestedHeaders: Record<string, string> = {};
 
-      const mockFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const mockFetch = async (
+        input: RequestInfo | URL,
+        init?: RequestInit,
+      ) => {
         requestedUrl = String(input);
         requestedHeaders = (init?.headers as Record<string, string>) || {};
         return new Response(
@@ -147,6 +156,44 @@ describe('Dynamic LiteLLM Models Discovery', () => {
       assert.equal(models.length, 1);
       assert.equal(models[0].id, 'z-ai/glm-5.3');
       assert.equal(models[0].maxOutputTokens, 262144);
+    });
+
+    it('extracts reasoning metadata and defaultReasoningEffort from model_info', async () => {
+      const mockFetch = async () => {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: 'openrouter/z-ai/glm-5.3-flash',
+                model_name: 'glm-5.3-flash',
+                model_info: {
+                  supports_reasoning: true,
+                  reasoning: {
+                    mandatory: true,
+                    supported_efforts: ['low', 'high', 'max'],
+                  },
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      };
+
+      const models = await fetchAvailableModels({
+        baseUrl: 'http://litellm-test:4000/v1',
+        fetchFn: mockFetch as unknown as typeof fetch,
+        forceRefresh: true,
+      });
+
+      const glm = models.find(
+        (m) =>
+          m.id === 'openrouter/z-ai/glm-5.3-flash' || m.id === 'glm-5.3-flash',
+      );
+      assert.ok(glm);
+      assert.equal(glm.supportsThinking, true);
+      assert.equal(glm.defaultReasoningEffort, 'low');
+      assert.deepEqual(glm.reasoningEfforts, ['low', 'high', 'max']);
     });
 
     it('caches response in-memory and avoids repeat network requests within TTL', async () => {
@@ -231,20 +278,20 @@ describe('Dynamic LiteLLM Models Discovery', () => {
     });
   });
 
-type RouteHandler = (opts: {
-  request: Request;
-  params?: Record<string, string>;
-}) => Promise<Response> | Response;
+  type RouteHandler = (opts: {
+    request: Request;
+    params?: Record<string, string>;
+  }) => Promise<Response> | Response;
 
-function getHandler(
-  route: { options: { server?: { handlers?: unknown } } },
-  method: string,
-): RouteHandler {
-  const handlers = route.options.server?.handlers as
-    | Record<string, RouteHandler>
-    | undefined;
-  return handlers?.[method] as RouteHandler;
-}
+  function getHandler(
+    route: { options: { server?: { handlers?: unknown } } },
+    method: string,
+  ): RouteHandler {
+    const handlers = route.options.server?.handlers as
+      | Record<string, RouteHandler>
+      | undefined;
+    return handlers?.[method] as RouteHandler;
+  }
 
   describe('Route handler', () => {
     it('GET handler returns 200 JSON with models array', async () => {
@@ -266,7 +313,9 @@ function getHandler(
       assert.ok(handler, 'OPTIONS handler should be defined');
 
       const response = await handler({
-        request: new Request('http://localhost/api/models', { method: 'OPTIONS' }),
+        request: new Request('http://localhost/api/models', {
+          method: 'OPTIONS',
+        }),
       });
 
       assert.equal(response.status, 200);

@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { json, preflight } from '@/server/api';
 import { PARAMETRIC_MODELS } from '@/lib/utils';
-import type { ModelConfig } from '@/types/misc';
+import type { ModelConfig, ReasoningEffort } from '@/types/misc';
 
 export interface RawLiteLLMModel {
   id?: string;
@@ -13,6 +13,8 @@ export interface RawLiteLLMModel {
   supportsTools?: boolean;
   supportsThinking?: boolean;
   supportsVision?: boolean;
+  defaultReasoningEffort?: ReasoningEffort;
+  reasoningEfforts?: ReasoningEffort[];
   max_output_tokens?: number;
   max_tokens?: number;
   maxOutputTokens?: number;
@@ -24,6 +26,12 @@ export interface RawLiteLLMModel {
     supports_reasoning?: boolean;
     supports_vision?: boolean;
     supports_function_calling?: boolean;
+    reasoning?: {
+      mandatory?: boolean;
+      default_effort?: string;
+      supported_efforts?: string[];
+      [key: string]: unknown;
+    };
     [key: string]: unknown;
   };
   [key: string]: unknown;
@@ -189,6 +197,25 @@ export function transformLiteLLMModels(rawModels: unknown[]): ModelConfig[] {
         ? rawMaxOutput
         : known?.maxOutputTokens;
 
+    const reasoningInfo =
+      info.reasoning ?? (item.reasoning as Record<string, unknown> | undefined);
+    const reasoningMandatory = Boolean(reasoningInfo?.mandatory);
+    const supportedEffortsRaw = Array.isArray(reasoningInfo?.supported_efforts)
+      ? (reasoningInfo.supported_efforts as string[])
+      : undefined;
+    const reasoningEfforts = supportedEffortsRaw
+      ? (supportedEffortsRaw.filter((e) =>
+          ['off', 'low', 'medium', 'high', 'max'].includes(e),
+        ) as ReasoningEffort[])
+      : undefined;
+
+    let defaultReasoningEffort: ReasoningEffort | undefined;
+    if (reasoningMandatory) {
+      defaultReasoningEffort = 'low';
+    } else if (supportsThinking) {
+      defaultReasoningEffort = item.defaultReasoningEffort || 'low';
+    }
+
     results.push({
       id,
       name,
@@ -198,6 +225,8 @@ export function transformLiteLLMModels(rawModels: unknown[]): ModelConfig[] {
       supportsThinking,
       supportsVision,
       maxOutputTokens,
+      defaultReasoningEffort,
+      reasoningEfforts,
     });
   }
 
