@@ -521,6 +521,8 @@ function AssistantBubble({
               <span className="inline-flex items-center gap-1 text-[11px] text-adam-neutral-400">
                 <ProviderLogo
                   provider={resolvedAssistantModel.provider}
+                  modelId={resolvedAssistantModel.id}
+                  modelName={resolvedAssistantModel.name}
                   className="h-3 w-3 text-adam-neutral-400"
                 />
                 <span>{resolvedAssistantModel.name}</span>
@@ -873,6 +875,8 @@ function RetryModelDropdown({
             <div className="flex w-full items-start gap-2.5">
               <ProviderLogo
                 provider={option.provider}
+                modelId={option.id}
+                modelName={option.name}
                 className="mt-px h-3.5 w-3.5 text-adam-text-primary"
               />
               <div className="min-w-0 flex-1">
