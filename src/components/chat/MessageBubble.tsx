@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { CREATIVE_MODELS } from '@/lib/utils';
 import { useAvailableModels } from '@/hooks/useAvailableModels';
+import { resolveModelWithFallback } from '@/lib/modelResolution';
 import { Avatar, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -492,6 +493,13 @@ function AssistantBubble({
     });
   };
 
+  const messageModelId =
+    (message.metadata?.model as Model | undefined) ?? currentModel;
+  const resolvedAssistantModel = useMemo(
+    () => resolveModelWithFallback(modelOptions, messageModelId),
+    [modelOptions, messageModelId],
+  );
+
   return (
     <div className="flex min-w-0 max-w-full justify-start overflow-hidden">
       <div className="mr-2 mt-1 shrink-0">
@@ -505,6 +513,21 @@ function AssistantBubble({
         </Avatar>
       </div>
       <div className="flex min-w-0 max-w-[calc(100%-3rem)] flex-1 flex-col gap-2">
+        <div className="flex items-center gap-1.5 px-0.5 text-xs text-adam-text-secondary">
+          <span className="font-semibold text-adam-text-primary">Adam</span>
+          {resolvedAssistantModel && (
+            <>
+              <span className="text-adam-neutral-600">·</span>
+              <span className="inline-flex items-center gap-1 text-[11px] text-adam-neutral-400">
+                <ProviderLogo
+                  provider={resolvedAssistantModel.provider}
+                  className="h-3 w-3 text-adam-neutral-400"
+                />
+                <span>{resolvedAssistantModel.name}</span>
+              </span>
+            </>
+          )}
+        </div>
         {message.parts.map((part, index) => {
           if (part.type === 'text') {
             if (
@@ -812,8 +835,7 @@ function RetryModelDropdown({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const selectedModel =
-    modelOptions.find((option) => option.id === selectedModelId) ??
-    modelOptions[0];
+    resolveModelWithFallback(modelOptions, selectedModelId) ?? modelOptions[0];
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>

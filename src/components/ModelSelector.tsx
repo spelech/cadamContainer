@@ -13,6 +13,8 @@ import { Model } from '@shared/types';
 import { ModelConfig } from '../types/misc.ts';
 import { useConversation } from '@/contexts/ConversationContext';
 
+import { resolveModelWithFallback } from '@/lib/modelResolution';
+
 interface ModelSelectorProps {
   models: ModelConfig[];
   selectedModel: string;
@@ -43,10 +45,19 @@ export function ModelSelector({
   const [isSliding, setIsSliding] = useState(false);
   const [slideDirection, setSlideDirection] = useState<'up' | 'down'>('up');
 
-  const selectedModelConfig = models.find((m) => m.id === selectedModel);
+  const resolvedModelConfig = resolveModelWithFallback(models, selectedModel);
+  const activeModelId = resolvedModelConfig?.id ?? selectedModel;
+  const activeModelName = resolvedModelConfig?.name ?? selectedModel;
+
+  // Sync state if selectedModel was missing and resolved to a fallback
+  useEffect(() => {
+    if (resolvedModelConfig && resolvedModelConfig.id !== selectedModel) {
+      onModelChange(resolvedModelConfig.id as Model);
+    }
+  }, [resolvedModelConfig, selectedModel, onModelChange]);
 
   // Store previous selected model name and type
-  const prevNameRef = useRef<string | undefined>(selectedModelConfig?.name);
+  const prevNameRef = useRef<string | undefined>(activeModelName);
   const prevTypeRef = useRef<'parametric' | 'creative' | undefined>(
     currentType,
   );
@@ -71,10 +82,7 @@ export function ModelSelector({
 
   // Trigger slide animation when selected model changes
   useEffect(() => {
-    if (
-      prevNameRef.current &&
-      prevNameRef.current !== selectedModelConfig?.name
-    ) {
+    if (prevNameRef.current && prevNameRef.current !== activeModelName) {
       setPrevModelName(prevNameRef.current);
       setIsSliding(true);
 
@@ -94,7 +102,7 @@ export function ModelSelector({
         const prevIndex = models.findIndex(
           (m) => m.name === prevNameRef.current,
         );
-        const newIndex = models.findIndex((m) => m.id === selectedModel);
+        const newIndex = models.findIndex((m) => m.id === activeModelId);
         if (prevIndex !== -1 && newIndex !== -1) {
           const direction = newIndex > prevIndex ? 'up' : 'down';
           setSlideDirection(direction);
@@ -102,9 +110,9 @@ export function ModelSelector({
       }
     }
 
-    prevNameRef.current = selectedModelConfig?.name;
+    prevNameRef.current = activeModelName;
     prevTypeRef.current = currentType;
-  }, [selectedModelConfig?.name, currentType, models, selectedModel]);
+  }, [activeModelName, currentType, models, activeModelId]);
 
   const handleSlideEnd = () => {
     setPrevModelName(null);
@@ -127,7 +135,7 @@ export function ModelSelector({
           }}
           variant="ghost"
           className={cn(
-            'flex h-8 w-auto items-center gap-1.5 rounded-lg px-3 text-sm transition-all duration-200 hover:border-[#333333] hover:bg-adam-neutral-800',
+            'flex h-8 w-auto items-center gap-1.5 rounded-lg px-2.5 text-sm transition-all duration-200 hover:border-[#333333] hover:bg-adam-neutral-800',
             focused
               ? 'text-white hover:text-white'
               : 'text-adam-text-secondary hover:text-adam-text-primary',
@@ -139,6 +147,12 @@ export function ModelSelector({
           )}
           disabled={!!disabled}
         >
+          {resolvedModelConfig && (
+            <ProviderLogo
+              provider={resolvedModelConfig.provider}
+              className="h-3.5 w-3.5 shrink-0 opacity-80"
+            />
+          )}
           <span className="relative inline-grid items-center overflow-hidden text-right font-normal">
             {/* Previous name sliding out */}
             {prevModelName && (
@@ -164,7 +178,7 @@ export function ModelSelector({
                   : 'block'
               }
             >
-              {selectedModelConfig?.name}
+              {activeModelName}
             </span>
           </span>
           <ChevronDown
@@ -195,7 +209,7 @@ export function ModelSelector({
             key={model.id}
             className={cn(
               'cursor-pointer rounded-md bg-adam-neutral-700 px-3 py-2.5 transition-colors duration-150 focus:bg-adam-bg-secondary-dark',
-              selectedModel === model.id && 'bg-adam-neutral-800',
+              activeModelId === model.id && 'bg-adam-neutral-800',
               !!model.disabled && 'cursor-not-allowed opacity-50',
             )}
             onClick={(event) => {
@@ -233,7 +247,7 @@ export function ModelSelector({
                   </p>
                 )}
               </div>
-              {selectedModel === model.id && (
+              {activeModelId === model.id && (
                 <Check
                   className={cn(
                     'mt-0.5 h-4 w-4 shrink-0',
