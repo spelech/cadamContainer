@@ -7,6 +7,8 @@ import { imageIdFromFilename, imageStoragePath } from '@shared/imageRefs';
 import { normalizeConversationSuggestions } from '@shared/suggestions';
 import { normalizeModelId } from '@shared/models';
 import type { Conversation, Message, MeshFileType, Model } from '@shared/types';
+import { getModelRoles } from './systemSettings';
+import type { ModelRolesConfig } from '@/types/settings';
 import {
   convertToModelMessages,
   consumeStream,
@@ -37,6 +39,28 @@ import { handleMeshRequest } from './mesh';
 import { getSessionUser, type AuthUser } from './auth';
 import { query } from './db';
 import { fetchAvailableModels } from '@/routes/api/models';
+import type { ReasoningEffort } from '@/types/misc';
+import {
+  createHeartbeatManager,
+  type HeartbeatManager,
+} from './serverHeartbeat';
+
+export function effortToTokens(effort?: ReasoningEffort): number {
+  switch (effort) {
+    case 'off':
+      return 0;
+    case 'low':
+      return 2048;
+    case 'medium':
+      return 4096;
+    case 'high':
+      return 8192;
+    case 'max':
+      return 16384;
+    default:
+      return 2048;
+  }
+}
 
 /**
  * USD list price per **million** tokens, keyed by the same model IDs the
@@ -336,6 +360,7 @@ type ChatBody = {
   conversationId: string;
   model: Model;
   thinking?: boolean;
+  reasoningEffort?: string;
 };
 
 type ConversationAccess = Pick<
@@ -348,7 +373,8 @@ function isChatBody(value: unknown): value is ChatBody {
     isRecord(value) &&
     typeof value.conversationId === 'string' &&
     typeof value.model === 'string' &&
-    (value.thinking == null || typeof value.thinking === 'boolean')
+    (value.thinking == null || typeof value.thinking === 'boolean') &&
+    (value.reasoningEffort == null || typeof value.reasoningEffort === 'string')
   );
 }
 
@@ -364,7 +390,9 @@ const PARAMETRIC_MAX_OUTPUT_TOKENS = 64000;
 
 function hasValidApiKey(keyName: string): boolean {
   const val = env(keyName)?.trim();
-  return Boolean(val && !val.startsWith('your_') && !val.includes('placeholder'));
+  return Boolean(
+    val && !val.startsWith('your_') && !val.includes('placeholder'),
+  );
 }
 
 type ChatProvider = 'anthropic' | 'google' | 'openrouter';
@@ -375,13 +403,16 @@ function providerFor(modelId: string): ChatProvider {
   if (env('LITELLM_BASE_URL') || env('OPENROUTER_BASE_URL')) {
     return 'openrouter';
   }
-  if (modelId.startsWith('anthropic/') && hasValidApiKey('ANTHROPIC_API_KEY')) return 'anthropic';
-  if (modelId.startsWith('google/') && hasValidApiKey('GOOGLE_API_KEY')) return 'google';
+  if (modelId.startsWith('anthropic/') && hasValidApiKey('ANTHROPIC_API_KEY'))
+    return 'anthropic';
+  if (modelId.startsWith('google/') && hasValidApiKey('GOOGLE_API_KEY'))
+    return 'google';
   return 'openrouter';
 }
 
 function normalizeGatewayModelId(modelId: string): string {
-  if (modelId === 'google/gemini-3.8-flash') return 'openrouter/gemini-3.8-flash';
+  if (modelId === 'google/gemini-3.8-flash')
+    return 'openrouter/gemini-3.8-flash';
   if (modelId === 'z-ai/glm-5.3-flash') return 'glm-5.3-flash';
   if (modelId === 'z-ai/glm-5.3') return 'glm-5.3';
   return modelId;
@@ -438,9 +469,7 @@ export function createChatProviders(user?: AuthUser): ChatProviders {
           env('OPENROUTER_API_KEY') ||
           'missing-openrouter-key',
         baseURL:
-          env('LITELLM_BASE_URL') ||
-          env('OPENROUTER_BASE_URL') ||
-          undefined,
+          env('LITELLM_BASE_URL') || env('OPENROUTER_BASE_URL') || undefined,
         headers: user?.email ? { 'x-litellm-user-id': user.email } : undefined,
       });
       return openrouter;
@@ -493,18 +522,42 @@ export function buildChatModel(
   thinking: boolean,
   thinkingBudget: number = THINKING_BUDGET_TOKENS,
   user?: AuthUser,
+  reasoningEffort?: ReasoningEffort,
 ): { model: LanguageModel; providerOptions?: ProviderOptions } {
-  const hasCappedThinkingBudget =
-    thinking && thinkingBudget !== THINKING_BUDGET_TOKENS;
+  const budget =
+    thinkingBudget !== THINKING_BUDGET_TOKENS
+      ? thinkingBudget
+      : effortToTokens(reasoningEffort);
+  const effectiveEffort = reasoningEffort ?? (thinking ? 'high' : 'low');
 
   if (providerFor(modelId) === 'openrouter') {
     const gatewayModel = normalizeGatewayModelId(modelId);
+    const openrouterEffort =
+      effectiveEffort === 'max'
+        ? ('xhigh' as const)
+        : effectiveEffort === 'off'
+          ? ('none' as const)
+          : effectiveEffort;
+
+    const reasoningOpts =
+      effectiveEffort === 'off'
+        ? undefined
+        : {
+            effort: openrouterEffort,
+          };
     return {
       model: providers.openrouter().chat(gatewayModel, {
-        ...(thinking ? { reasoning: { max_tokens: thinkingBudget } } : {}),
+        ...(reasoningOpts ? { reasoning: reasoningOpts } : {}),
         usage: { include: true },
         extraBody: user?.email ? { user: user.email } : undefined,
       }),
+      providerOptions: reasoningOpts
+        ? ({
+            openrouter: {
+              reasoning: reasoningOpts,
+            },
+          } as ProviderOptions)
+        : undefined,
     };
   }
 
@@ -513,28 +566,35 @@ export function buildChatModel(
     // OpenRouter alias uses dots ("claude-haiku-4.5"). Normalize both.
     const id = modelId.slice('anthropic/'.length).replace(/\./g, '-');
     const adaptiveThinking = usesAdaptiveAnthropicThinking(id);
+    const anthropicEffort =
+      effectiveEffort === 'low'
+        ? 'low'
+        : effectiveEffort === 'medium'
+          ? 'medium'
+          : 'high';
     return {
       model: providers.anthropic()(id),
-      providerOptions: thinking
-        ? {
-            anthropic: {
-              ...(adaptiveThinking
-                ? {
-                    thinking: {
-                      type: 'adaptive' as const,
-                      display: 'summarized' as const,
-                    },
-                    effort: hasCappedThinkingBudget ? 'low' : 'high',
-                  }
-                : {
-                    thinking: {
-                      type: 'enabled' as const,
-                      budgetTokens: thinkingBudget,
-                    },
-                  }),
-            },
-          }
-        : undefined,
+      providerOptions:
+        thinking && effectiveEffort !== 'off'
+          ? {
+              anthropic: {
+                ...(adaptiveThinking
+                  ? {
+                      thinking: {
+                        type: 'adaptive' as const,
+                        display: 'summarized' as const,
+                      },
+                      effort: anthropicEffort,
+                    }
+                  : {
+                      thinking: {
+                        type: 'enabled' as const,
+                        budgetTokens: budget,
+                      },
+                    }),
+              },
+            }
+          : undefined,
     };
   }
 
@@ -545,7 +605,8 @@ export function buildChatModel(
       providerOptions: {
         google: {
           thinkingConfig: {
-            includeThoughts: true,
+            includeThoughts: effectiveEffort !== 'off',
+            ...(budget > 0 ? { thinkingBudget: budget } : {}),
           },
         },
       },
@@ -1005,7 +1066,9 @@ export async function downloadAsBase64(
         binary += String.fromCharCode(...bytes.slice(index, index + chunkSize));
       }
       const mediaType =
-        (await sniffImageMediaType(bytes)) || localObj.contentType || 'image/png';
+        (await sniffImageMediaType(bytes)) ||
+        localObj.contentType ||
+        'image/png';
       return { base64: btoa(binary), mediaType };
     }
 
@@ -1081,13 +1144,43 @@ function parametricTools({
   };
 }
 
-function chatModel(conversation: ConversationAccess, model: Model) {
-  if (conversation.type === 'creative') {
-    return model
-      ? normalizeModelId(model)
-      : env('LITELLM_CREATIVE_MODEL') || 'anthropic/claude-sonnet-4.5';
+let cachedModelRoles: ModelRolesConfig | null = null;
+let lastRolesFetch = 0;
+
+async function resolveChatModel(
+  conversation: ConversationAccess,
+  model: Model,
+): Promise<string> {
+  const now = Date.now();
+  if (!cachedModelRoles || now - lastRolesFetch > 15000) {
+    cachedModelRoles = await getModelRoles().catch(() => null);
+    lastRolesFetch = now;
   }
-  return normalizeModelId(model);
+
+  const isCreativeMesh =
+    conversation.type === 'creative' ||
+    model === 'quality' ||
+    model === 'fast' ||
+    model === 'ultra';
+
+  if (isCreativeMesh) {
+    return (
+      env('LITELLM_CREATIVE_MODEL') ||
+      cachedModelRoles?.creativeModel ||
+      env('LITELLM_AUXILIARY_MODEL') ||
+      'glm-5.3-flash'
+    );
+  }
+
+  if (model && model !== 'quality' && model !== 'fast' && model !== 'ultra') {
+    return normalizeModelId(model);
+  }
+
+  return (
+    cachedModelRoles?.parametricModel ||
+    env('OPENROUTER_MODEL') ||
+    'google/gemini-3.8-flash'
+  );
 }
 
 function systemPrompt(conversation: ConversationAccess) {
@@ -1295,7 +1388,7 @@ export async function handleAiChatRequest(req: Request) {
   // `creative` conversations this is hardcoded to Sonnet regardless of
   // what the client picked — billing has to price the model that ran,
   // not the one the user requested.
-  const actualModelId = chatModel(conversation, rawBody.model);
+  const actualModelId = await resolveChatModel(conversation, rawBody.model);
   const resolvedProvider = providerFor(actualModelId);
   const baseLogContext = {
     userId: user.id,
@@ -1305,15 +1398,22 @@ export async function handleAiChatRequest(req: Request) {
     provider: resolvedProvider,
   };
 
+  const requestedReasoningEffort =
+    typeof rawBody.reasoningEffort === 'string' &&
+    ['off', 'low', 'medium', 'high', 'max'].includes(rawBody.reasoningEffort)
+      ? (rawBody.reasoningEffort as ReasoningEffort)
+      : undefined;
+
   // Adaptive-thinking Anthropic models (Claude 5 — Fable/Mythos — and
   // Opus/Sonnet 4.6+) get thinking enabled unconditionally: adaptive thinking
   // lets the model decide when and how much to think, and on Fable 5 omitting
   // it disables thinking entirely — no reasoning ever streams, and complex
   // parametric turns degrade (especially combined with the auto tool-choice
-  // fallback). The client never sends `thinking: true` today, so without this
-  // the Anthropic thinking branch is dead code.
+  // fallback).
   const thinkingEnabled =
     (rawBody.thinking ?? false) ||
+    (requestedReasoningEffort !== undefined &&
+      requestedReasoningEffort !== 'off') ||
     (resolvedProvider === 'anthropic' &&
       usesAdaptiveAnthropicThinking(actualModelId));
 
@@ -1326,6 +1426,7 @@ export async function handleAiChatRequest(req: Request) {
       thinkingEnabled,
       undefined,
       user,
+      requestedReasoningEffort,
     );
     chatLanguageModel = built.model;
     chatProviderOptions = built.providerOptions;
@@ -1411,11 +1512,28 @@ export async function handleAiChatRequest(req: Request) {
                   ? {
                       providerOptions: {
                         anthropic: { thinking: { type: 'disabled' as const } },
-                      },
+                      } as ProviderOptions,
                     }
                   : {}),
               }
             : {}),
+        };
+      }
+      if (
+        conversation.type === 'parametric' &&
+        stepNumber > 0 &&
+        requestedReasoningEffort !== 'high' &&
+        requestedReasoningEffort !== 'max'
+      ) {
+        return {
+          providerOptions: {
+            openrouter: {
+              reasoning: { effort: 'low' },
+            },
+            anthropic: {
+              thinking: { type: 'adaptive' as const, effort: 'low' as const },
+            },
+          } as ProviderOptions,
         };
       }
       return {};
@@ -1485,6 +1603,7 @@ export async function handleAiChatRequest(req: Request) {
   // assistant message stream. The transient parts never land in
   // `messages.parts`; the client picks them up via `useChat`'s `onData`
   // and pokes the conversation query cache directly.
+  let heartbeat: HeartbeatManager | undefined;
   const stream = createUIMessageStream<AppUIMessage>({
     // `onError` runs for anything thrown inside `execute` OR inside the
     // merged streamText output. Without overriding it, the AI SDK
@@ -1493,6 +1612,7 @@ export async function handleAiChatRequest(req: Request) {
     // useless for debugging. Log here and pass through a short message
     // to the client so the failure is visible in the UI too.
     onError: (error) => {
+      heartbeat?.stop();
       logError(error, {
         functionName: 'ai-chat',
         statusCode: 500,
@@ -1507,6 +1627,20 @@ export async function handleAiChatRequest(req: Request) {
       return `Model call failed (${resolvedProvider}/${actualModelId}): ${message}`;
     },
     execute: async ({ writer }) => {
+      heartbeat = createHeartbeatManager(() => {
+        try {
+          writer.write({
+            transient: true,
+            type: 'data-keepalive',
+            data: { timestamp: Date.now() },
+          });
+        } catch {
+          // ignore write errors on closed stream
+        }
+      }, 15000);
+
+      req.signal.addEventListener('abort', () => heartbeat?.stop());
+
       // Title (first user turn only) runs in parallel with the model
       // stream — fire-and-forget; the assistant doesn't wait on it.
       if (isFirstUserTurn && canGenerateAuxiliaryContent()) {
@@ -1523,6 +1657,7 @@ export async function handleAiChatRequest(req: Request) {
           originalMessages: branchMessages,
           generateMessageId: () => crypto.randomUUID(),
           onFinish: async ({ responseMessage, isContinuation }) => {
+            heartbeat?.stop();
             const usage = await result.totalUsage;
             const billingTokens = billingTokensFromUsage(actualModelId, usage);
             const metadata = {

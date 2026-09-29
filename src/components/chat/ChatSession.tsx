@@ -17,6 +17,8 @@ import {
   generateInspectionPreview,
   generatePreview,
 } from '@/utils/meshUtils';
+import { useAvailableModels } from '@/hooks/useAvailableModels';
+import { useReasoningEffort } from '@/hooks/useReasoningEffort';
 import type {
   AppUIMessage,
   ConversationSuggestionsUpdate,
@@ -161,6 +163,17 @@ export function ChatSession({
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const { models: availableModels } = useAvailableModels();
+  const currentModelConfig = useMemo(
+    () => availableModels.find((m) => m.id === model),
+    [availableModels, model],
+  );
+
+  const { reasoningEffort, setReasoningEffort } = useReasoningEffort(
+    model,
+    currentModelConfig,
+  );
+
   // ───────────────────────────────────────────────────────────────────────
   // Transport — strips client state out of the wire body. Server reads the
   // branch from `conversations.current_message_leaf_id` and walks parents
@@ -215,11 +228,19 @@ export function ChatSession({
           body: {
             conversationId: conversation.id,
             model,
+            reasoningEffort,
             ...(body ?? {}),
           },
         }),
       }),
-    [authHeaders, billingAwareFetch, conversation.id, conversation.type, model],
+    [
+      authHeaders,
+      billingAwareFetch,
+      conversation.id,
+      conversation.type,
+      model,
+      reasoningEffort,
+    ],
   );
 
   // ───────────────────────────────────────────────────────────────────────
@@ -739,6 +760,47 @@ export function ChatSession({
     onLoadingChange?.(isLoading);
   }, [isLoading, onLoadingChange]);
 
+  // Keep mobile screens awake during active reasoning / rendering generations
+  // to prevent mobile OS browsers from sleeping and dropping websocket/SSE connections.
+  useEffect(() => {
+    let sentinel: { release: () => Promise<void> } | null = null;
+    let released = false;
+
+    if (
+      isLoading &&
+      typeof navigator !== 'undefined' &&
+      'wakeLock' in navigator
+    ) {
+      (
+        navigator as unknown as {
+          wakeLock: {
+            request: (
+              type: string,
+            ) => Promise<{ release: () => Promise<void> }>;
+          };
+        }
+      ).wakeLock
+        .request('screen')
+        .then((lock) => {
+          if (released) {
+            void lock.release();
+          } else {
+            sentinel = lock;
+          }
+        })
+        .catch(() => {
+          // Ignore wake lock request failure (e.g. low battery, background tab)
+        });
+    }
+
+    return () => {
+      released = true;
+      if (sentinel) {
+        void sentinel.release().catch(() => {});
+      }
+    };
+  }, [isLoading]);
+
   // ───────────────────────────────────────────────────────────────────────
   // Sibling tree for branch nav.
   //
@@ -845,10 +907,17 @@ export function ChatSession({
       // `...(body ?? {})` spread overrides any stale baked-in value.
       await sendMessage(
         { id: userMessageId, parts, metadata: { model } },
-        { body: { model } },
+        { body: { model, reasoningEffort } },
       );
     },
-    [conversation.id, conversation.type, model, onSendParts, sendMessage],
+    [
+      conversation.id,
+      conversation.type,
+      model,
+      reasoningEffort,
+      onSendParts,
+      sendMessage,
+    ],
   );
 
   const handleEditUserText = useCallback(
@@ -858,10 +927,10 @@ export function ChatSession({
       setMessages(parentPath);
       await sendMessage(
         { id: newUserMessageId, parts, metadata: { model } },
-        { body: { model } },
+        { body: { model, reasoningEffort } },
       );
     },
-    [model, onEdit, sendMessage, setMessages],
+    [model, reasoningEffort, onEdit, sendMessage, setMessages],
   );
 
   const handleRetry = useCallback(
@@ -870,10 +939,10 @@ export function ChatSession({
       await onRetry(assistant);
       await regenerate({
         messageId: assistant.id,
-        body: { model: nextModel },
+        body: { model: nextModel, reasoningEffort },
       });
     },
-    [model, onRetry, regenerate, setModel],
+    [model, reasoningEffort, onRetry, regenerate, setModel],
   );
 
   const handleRestore = useCallback(
@@ -987,6 +1056,8 @@ export function ChatSession({
           disabled={isDisabled}
           model={model}
           setModel={setModel}
+          reasoningEffort={reasoningEffort}
+          onReasoningEffortChange={setReasoningEffort}
           conversation={conversation}
         />
       </div>

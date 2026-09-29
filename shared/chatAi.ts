@@ -94,12 +94,16 @@ export type ConversationSuggestionsUpdate = {
   conversationId: string;
   suggestions: string[];
 };
+export type KeepaliveData = {
+  timestamp: number;
+};
 
 export type AppDataTypes = {
   'mesh-context': MeshContextData;
   'mesh-preferences': MeshPreferencesData;
   'title-update': ConversationTitleUpdate;
   'suggestions-update': ConversationSuggestionsUpdate;
+  keepalive: KeepaliveData;
 };
 
 export const meshContextDataSchema = z.object({

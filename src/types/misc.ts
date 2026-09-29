@@ -14,6 +14,8 @@ export type HistoryConversation = Omit<
   message_count: number;
 };
 
+export type ReasoningEffort = 'off' | 'low' | 'medium' | 'high' | 'max';
+
 export interface ModelConfig {
   id: Model;
   name: string;
@@ -25,6 +27,8 @@ export interface ModelConfig {
   supportsThinking?: boolean;
   supportsVision?: boolean;
   maxOutputTokens?: number;
+  defaultReasoningEffort?: ReasoningEffort;
+  reasoningEfforts?: ReasoningEffort[];
 }
 
 export interface MessageItem {
