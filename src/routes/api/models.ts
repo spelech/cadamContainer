@@ -245,10 +245,15 @@ export async function fetchAvailableModels(
 
   const rawBaseUrl =
     options?.baseUrl ||
+    process.env.LITELLM_BASE_URL ||
     process.env.OPENROUTER_BASE_URL ||
     'http://litellm:4000/v1';
   const baseUrl = rawBaseUrl.replace(/\/+$/, '');
-  const apiKey = options?.apiKey || process.env.OPENROUTER_API_KEY || 'sk-none';
+  const apiKey =
+    options?.apiKey ||
+    process.env.LITELLM_API_KEY ||
+    process.env.OPENROUTER_API_KEY ||
+    'sk-none';
   const fetcher = options?.fetchFn || fetch;
 
   try {

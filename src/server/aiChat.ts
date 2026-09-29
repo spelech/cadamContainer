@@ -530,12 +530,18 @@ export function buildChatModel(
 
   if (providerFor(modelId) === 'openrouter') {
     const gatewayModel = normalizeGatewayModelId(modelId);
+    const openrouterEffort =
+      effectiveEffort === 'max'
+        ? ('xhigh' as const)
+        : effectiveEffort === 'off'
+          ? ('none' as const)
+          : effectiveEffort;
+
     const reasoningOpts =
       effectiveEffort === 'off'
         ? undefined
         : {
-            effort: effectiveEffort,
-            max_tokens: budget,
+            effort: openrouterEffort,
           };
     return {
       model: providers.openrouter().chat(gatewayModel, {
@@ -543,6 +549,13 @@ export function buildChatModel(
         usage: { include: true },
         extraBody: user?.email ? { user: user.email } : undefined,
       }),
+      providerOptions: reasoningOpts
+        ? ({
+            openrouter: {
+              reasoning: reasoningOpts,
+            },
+          } as ProviderOptions)
+        : undefined,
     };
   }
 
@@ -1483,7 +1496,7 @@ export async function handleAiChatRequest(req: Request) {
         return {
           providerOptions: {
             openrouter: {
-              reasoning: { effort: 'low', max_tokens: 2048 },
+              reasoning: { effort: 'low' },
             },
             anthropic: {
               thinking: { type: 'adaptive' as const, effort: 'low' as const },

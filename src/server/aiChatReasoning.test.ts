@@ -26,11 +26,22 @@ test('buildChatModel passes effort and capped tokens to openrouter when reasonin
     google: () => (() => ({}) as never) as never,
   };
 
-  buildChatModel('glm-5.3-flash', mockProviders, true, 2048, undefined, 'low');
+  const built = buildChatModel(
+    'glm-5.3-flash',
+    mockProviders,
+    true,
+    2048,
+    undefined,
+    'low',
+  );
   assert.ok(capturedOptions);
   assert.deepEqual(capturedOptions.reasoning, {
     effort: 'low',
-    max_tokens: 2048,
+  });
+  assert.deepEqual(built.providerOptions, {
+    openrouter: {
+      reasoning: { effort: 'low' },
+    },
   });
 });
 
@@ -59,6 +70,5 @@ test('buildChatModel defaults OpenRouter reasoning to low when thinking is off t
   assert.ok(capturedOptions);
   assert.deepEqual(capturedOptions.reasoning, {
     effort: 'low',
-    max_tokens: 2048,
   });
 });
