@@ -1,6 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { json, preflight } from '@/server/api';
-import { getSessionUser } from '@/server/auth';
+import {
+  createSessionCookie,
+  getSessionUser,
+  isSecure,
+  parseCookies,
+  SESSION_COOKIE_NAME,
+  signSession,
+} from '@/server/auth';
 
 export const Route = createFileRoute('/api/auth/me')({
   server: {
@@ -12,7 +19,7 @@ export const Route = createFileRoute('/api/auth/me')({
           return json({ error: 'Unauthorized', user: null }, 401);
         }
 
-        return json({
+        const res = json({
           user: {
             id: user.id,
             email: user.email,
@@ -24,6 +31,18 @@ export const Route = createFileRoute('/api/auth/me')({
             },
           },
         });
+
+        const cookies = parseCookies(request.headers.get('cookie'));
+        if (!cookies[SESSION_COOKIE_NAME]) {
+          const sessionToken = signSession(user);
+          const secure = isSecure(request);
+          res.headers.append(
+            'Set-Cookie',
+            createSessionCookie(sessionToken, { secure }),
+          );
+        }
+
+        return res;
       },
     },
   },

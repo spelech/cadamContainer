@@ -1,4 +1,10 @@
-import { createHmac, createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import {
+  createHmac,
+  createHash,
+  randomBytes,
+  randomUUID,
+  timingSafeEqual,
+} from 'node:crypto';
 import { query } from './db';
 
 export const SESSION_COOKIE_NAME = 'cadam_session';
@@ -115,7 +121,9 @@ export function isSecure(request?: Request): boolean {
 /**
  * Parses HTTP Cookie header string into key-value map.
  */
-export function parseCookies(cookieHeader: string | null | undefined): Record<string, string> {
+export function parseCookies(
+  cookieHeader: string | null | undefined,
+): Record<string, string> {
   const cookies: Record<string, string> = {};
   if (!cookieHeader) return cookies;
   for (const part of cookieHeader.split(';')) {
@@ -198,7 +206,9 @@ export function signSession(
   const headerB64 = Buffer.from(JSON.stringify(header)).toString('base64url');
   const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const content = `${headerB64}.${payloadB64}`;
-  const signature = createHmac('sha256', secret).update(content).digest('base64url');
+  const signature = createHmac('sha256', secret)
+    .update(content)
+    .digest('base64url');
 
   return `${content}.${signature}`;
 }
@@ -218,11 +228,16 @@ export function verifySession(
   const content = `${headerB64}.${payloadB64}`;
 
   try {
-    const expectedSig = createHmac('sha256', secret).update(content).digest('base64url');
+    const expectedSig = createHmac('sha256', secret)
+      .update(content)
+      .digest('base64url');
     const sigBuf = Buffer.from(signature);
     const expectedBuf = Buffer.from(expectedSig);
 
-    if (sigBuf.length !== expectedBuf.length || !timingSafeEqual(sigBuf, expectedBuf)) {
+    if (
+      sigBuf.length !== expectedBuf.length ||
+      !timingSafeEqual(sigBuf, expectedBuf)
+    ) {
       return null;
     }
 
@@ -249,9 +264,93 @@ export function verifySession(
 }
 
 /**
- * Extracts and verifies the authenticated user from the Request's cookies or Authorization header.
+ * Resolves an authenticated user from reverse-proxy forward-auth headers
+ * (e.g. Tinyauth, Authelia, Cloudflare Access).
  */
-export async function getSessionUser(request: Request): Promise<AuthUser | null> {
+export async function getUserFromProxyHeaders(
+  request: Request,
+): Promise<AuthUser | null> {
+  const emailHeader =
+    request.headers.get('remote-email') ||
+    request.headers.get('x-forwarded-email') ||
+    request.headers.get('x-authentik-email');
+
+  const userHeader =
+    request.headers.get('remote-user') ||
+    request.headers.get('x-forwarded-user') ||
+    request.headers.get('x-authentik-username');
+
+  let email = emailHeader?.trim().toLowerCase();
+  if (!email && userHeader && userHeader.includes('@')) {
+    email = userHeader.trim().toLowerCase();
+  }
+
+  if (!email && userHeader) {
+    email = `${userHeader.trim().toLowerCase()}@localhost`;
+  }
+
+  if (!email) {
+    return null;
+  }
+
+  const displayName =
+    request.headers.get('remote-name')?.trim() ||
+    request.headers.get('x-authentik-name')?.trim() ||
+    userHeader?.trim() ||
+    email.split('@')[0];
+
+  try {
+    const existingRes = await query<{
+      id: string;
+      email: string;
+      display_name: string | null;
+      avatar_url: string | null;
+    }>(
+      `SELECT id, email, display_name, avatar_url FROM profiles
+       WHERE LOWER(email) = $1
+       LIMIT 1`,
+      [email],
+    );
+
+    if (existingRes.rows.length > 0) {
+      const existing = existingRes.rows[0];
+      return {
+        id: existing.id,
+        email: existing.email,
+        display_name: existing.display_name,
+        avatar_url: existing.avatar_url,
+      };
+    }
+
+    const newId = randomUUID();
+    const insertRes = await query<{
+      id: string;
+      email: string;
+      display_name: string | null;
+      avatar_url: string | null;
+    }>(
+      `INSERT INTO profiles (id, email, display_name, avatar_url, updated_at)
+       VALUES ($1, $2, $3, NULL, NOW())
+       RETURNING id, email, display_name, avatar_url`,
+      [newId, email, displayName],
+    );
+
+    if (insertRes.rows.length > 0) {
+      return insertRes.rows[0];
+    }
+  } catch (err) {
+    console.error('[auth] Error resolving proxy user:', err);
+  }
+
+  return null;
+}
+
+/**
+ * Extracts and verifies the authenticated user from the Request's cookies, Authorization header, or proxy headers.
+ */
+export async function getSessionUser(
+  request: Request,
+): Promise<AuthUser | null> {
   const cookieHeader = request.headers.get('cookie');
   const cookies = parseCookies(cookieHeader);
   const sessionCookie = cookies[SESSION_COOKIE_NAME];
@@ -266,6 +365,11 @@ export async function getSessionUser(request: Request): Promise<AuthUser | null>
     const bearerToken = authHeader.slice(7).trim();
     const user = verifySession(bearerToken);
     if (user) return user;
+  }
+
+  const proxyUser = await getUserFromProxyHeaders(request);
+  if (proxyUser) {
+    return proxyUser;
   }
 
   return null;
@@ -302,7 +406,9 @@ export function createSessionCookie(
 /**
  * Creates Set-Cookie header string to clear cadam_session.
  */
-export function clearSessionCookie(options: Partial<CookieOptions> = {}): string {
+export function clearSessionCookie(
+  options: Partial<CookieOptions> = {},
+): string {
   return serializeCookie(SESSION_COOKIE_NAME, '', {
     httpOnly: true,
     sameSite: 'Lax',
@@ -350,7 +456,9 @@ export function createCodeVerifierCookie(
 /**
  * Creates array of Set-Cookie header strings to clear temporary OAuth state cookies.
  */
-export function clearOauthCookies(options: Partial<CookieOptions> = {}): string[] {
+export function clearOauthCookies(
+  options: Partial<CookieOptions> = {},
+): string[] {
   return [
     serializeCookie(STATE_COOKIE_NAME, '', {
       httpOnly: true,
@@ -382,7 +490,9 @@ let cachedDiscovery: { doc: DiscoveryDoc; expiresAt: number } | null = null;
 /**
  * Discovers OIDC endpoints from .well-known/openid-configuration or returns PocketID defaults.
  */
-export async function getOidcEndpoints(issuer = getPocketIdConfig().issuer): Promise<DiscoveryDoc> {
+export async function getOidcEndpoints(
+  issuer = getPocketIdConfig().issuer,
+): Promise<DiscoveryDoc> {
   const now = Date.now();
   if (cachedDiscovery && cachedDiscovery.expiresAt > now) {
     return cachedDiscovery.doc;
@@ -406,7 +516,11 @@ export async function getOidcEndpoints(issuer = getPocketIdConfig().issuer): Pro
 
     if (res.ok) {
       const data = await res.json();
-      if (data.authorization_endpoint && data.token_endpoint && data.userinfo_endpoint) {
+      if (
+        data.authorization_endpoint &&
+        data.token_endpoint &&
+        data.userinfo_endpoint
+      ) {
         const doc: DiscoveryDoc = {
           authorization_endpoint: data.authorization_endpoint,
           token_endpoint: data.token_endpoint,
