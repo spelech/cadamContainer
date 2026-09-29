@@ -22,8 +22,10 @@ function resolveDatabaseUrl(): string {
 
 process.env.DATABASE_URL = resolveDatabaseUrl();
 
-const { closePool } = await import('../../server/db.ts');
-const { handleSystemSettingsRequest } = await import('./system-settings.ts');
+const { closePool } = await import('./db.ts');
+const { handleSystemSettingsRequest } = await import(
+  '../routes/api/system-settings.ts'
+);
 
 describe('System Settings API Handler (src/routes/api/system-settings.ts)', () => {
   after(async () => {

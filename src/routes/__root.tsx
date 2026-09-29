@@ -45,6 +45,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           type="image/x-icon"
           href={assetUrl('cadam-icon.ico')}
         />
+
         <HeadContent />
       </head>
       <body>
