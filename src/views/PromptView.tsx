@@ -19,6 +19,7 @@ import { SelectedItemsContext } from '@/contexts/SelectedItemsContext';
 import posthog from 'posthog-js';
 import * as Sentry from '@sentry/react';
 import { useProfile } from '@/services/profileService';
+import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { useLayoutContext } from '@/contexts/LayoutContext';
 import { apiUrl } from '@/services/api';
 import {
@@ -48,9 +49,24 @@ export function PromptView() {
     return source.trim().split(/\s+/)[0] || '';
   }, [profile?.full_name, user, isProfileLoading]);
 
+  const { modelRoles } = useSystemSettings();
+
   const [type, setType] = useState<'parametric' | 'creative'>('parametric');
 
-  const [model, setModel] = useState<Model>('google/gemini-3.8-flash');
+  const [model, setModel] = useState<Model>(
+    () => (modelRoles?.parametricModel as Model) || 'google/gemini-3.8-flash',
+  );
+
+  useEffect(() => {
+    if (modelRoles?.parametricModel && type === 'parametric') {
+      setModel((prev) => {
+        if (prev === 'google/gemini-3.8-flash') {
+          return modelRoles.parametricModel as Model;
+        }
+        return prev;
+      });
+    }
+  }, [modelRoles?.parametricModel, type]);
 
   const handleTypeChange = (newType: 'parametric' | 'creative') => {
     setType(newType);
@@ -58,7 +74,9 @@ export function PromptView() {
     if (newType === 'creative') {
       setModel('quality');
     } else {
-      setModel('google/gemini-3.8-flash');
+      setModel(
+        (modelRoles?.parametricModel as Model) || 'google/gemini-3.8-flash',
+      );
     }
   };
 

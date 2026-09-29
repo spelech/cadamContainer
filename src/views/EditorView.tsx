@@ -24,6 +24,7 @@ import {
 } from '@/lib/aiMessages';
 import parseParameters from '@shared/parseParameters';
 import { normalizeModelId } from '@shared/models';
+import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { supabase } from '@/lib/supabase';
 import { updateParameter } from '@/lib/utils';
 import {
@@ -187,6 +188,7 @@ function ConversationEditor() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const totalTokens = billing?.tokens.total ?? 0;
+  const { modelRoles } = useSystemSettings();
 
   // ── Per-conversation UI state ───────────────────────────────────────────
   const [model, setModel] = useState<Model>(
@@ -194,7 +196,7 @@ function ConversationEditor() {
       ? normalizeModelId(conversation.settings.model)
       : conversation.type === 'creative'
         ? 'quality'
-        : 'google/gemini-3.8-flash',
+        : (modelRoles?.parametricModel as Model) || 'google/gemini-3.8-flash',
   );
   const [activePreview, setActivePreview] = useState<ActivePreview>(null);
   const [parameters, setParameters] = useState<Parameter[]>([]);

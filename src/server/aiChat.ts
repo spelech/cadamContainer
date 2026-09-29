@@ -7,6 +7,8 @@ import { imageIdFromFilename, imageStoragePath } from '@shared/imageRefs';
 import { normalizeConversationSuggestions } from '@shared/suggestions';
 import { normalizeModelId } from '@shared/models';
 import type { Conversation, Message, MeshFileType, Model } from '@shared/types';
+import { getModelRoles } from './systemSettings';
+import type { ModelRolesConfig } from '@/types/settings';
 import {
   convertToModelMessages,
   consumeStream,
@@ -1142,22 +1144,43 @@ function parametricTools({
   };
 }
 
-function chatModel(conversation: ConversationAccess, model: Model) {
-  if (conversation.type === 'creative') {
-    if (model === 'quality' || model === 'fast' || model === 'ultra') {
-      return (
-        env('LITELLM_CREATIVE_MODEL') ||
-        env('LITELLM_AUXILIARY_MODEL') ||
-        'glm-5.3-flash'
-      );
-    }
-    return model
-      ? normalizeModelId(model)
-      : env('LITELLM_CREATIVE_MODEL') ||
-          env('LITELLM_AUXILIARY_MODEL') ||
-          'glm-5.3-flash';
+let cachedModelRoles: ModelRolesConfig | null = null;
+let lastRolesFetch = 0;
+
+async function resolveChatModel(
+  conversation: ConversationAccess,
+  model: Model,
+): Promise<string> {
+  const now = Date.now();
+  if (!cachedModelRoles || now - lastRolesFetch > 15000) {
+    cachedModelRoles = await getModelRoles().catch(() => null);
+    lastRolesFetch = now;
   }
-  return normalizeModelId(model);
+
+  const isCreativeMesh =
+    conversation.type === 'creative' ||
+    model === 'quality' ||
+    model === 'fast' ||
+    model === 'ultra';
+
+  if (isCreativeMesh) {
+    return (
+      env('LITELLM_CREATIVE_MODEL') ||
+      cachedModelRoles?.creativeModel ||
+      env('LITELLM_AUXILIARY_MODEL') ||
+      'glm-5.3-flash'
+    );
+  }
+
+  if (model && model !== 'quality' && model !== 'fast' && model !== 'ultra') {
+    return normalizeModelId(model);
+  }
+
+  return (
+    cachedModelRoles?.parametricModel ||
+    env('OPENROUTER_MODEL') ||
+    'google/gemini-3.8-flash'
+  );
 }
 
 function systemPrompt(conversation: ConversationAccess) {
@@ -1365,7 +1388,7 @@ export async function handleAiChatRequest(req: Request) {
   // `creative` conversations this is hardcoded to Sonnet regardless of
   // what the client picked — billing has to price the model that ran,
   // not the one the user requested.
-  const actualModelId = chatModel(conversation, rawBody.model);
+  const actualModelId = await resolveChatModel(conversation, rawBody.model);
   const resolvedProvider = providerFor(actualModelId);
   const baseLogContext = {
     userId: user.id,

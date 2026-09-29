@@ -193,6 +193,17 @@ CREATE TABLE IF NOT EXISTS storage_objects (
 CREATE INDEX IF NOT EXISTS storage_objects_bucket_idx ON storage_objects(bucket);
 CREATE INDEX IF NOT EXISTS storage_objects_created_at_idx ON storage_objects(created_at);
 
+CREATE TABLE IF NOT EXISTS system_settings (
+  key TEXT PRIMARY KEY,
+  category TEXT NOT NULL DEFAULT 'general',
+  value JSONB NOT NULL,
+  description TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by UUID REFERENCES profiles(id)
+);
+
+CREATE INDEX IF NOT EXISTS system_settings_category_idx ON system_settings(category);
+
 COMMIT;
 `;
 
@@ -245,6 +256,9 @@ if (
   !process.env?.VITEST
 ) {
   initDatabase().catch((err) => {
-    console.warn('[db] Background auto-migration pending/deferred:', err?.message || err);
+    console.warn(
+      '[db] Background auto-migration pending/deferred:',
+      err?.message || err,
+    );
   });
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Model } from '@shared/types';
 import type { ModelConfig, ReasoningEffort } from '@/types/misc';
+import { useSystemSettings } from './useSystemSettings';
 
 const VALID_EFFORTS: ReasoningEffort[] = [
   'off',
@@ -13,6 +14,7 @@ const VALID_EFFORTS: ReasoningEffort[] = [
 export function getSavedReasoningEffort(
   modelId: string,
   defaultEffort?: ReasoningEffort,
+  systemDefault?: ReasoningEffort,
 ): ReasoningEffort {
   try {
     const saved = localStorage.getItem(`cadam_reasoning_effort_${modelId}`);
@@ -22,7 +24,7 @@ export function getSavedReasoningEffort(
   } catch {
     // LocalStorage unavailable
   }
-  return defaultEffort || 'low';
+  return defaultEffort || systemDefault || 'low';
 }
 
 export function saveReasoningEffort(
@@ -37,15 +39,19 @@ export function saveReasoningEffort(
 }
 
 export function useReasoningEffort(model: Model, modelConfig?: ModelConfig) {
-  const defaultEffort = modelConfig?.defaultReasoningEffort;
+  const { modelRoles } = useSystemSettings();
+  const systemDefault = modelRoles?.defaultReasoningEffort;
+  const defaultEffort = modelConfig?.defaultReasoningEffort || systemDefault;
 
   const [effort, setEffortState] = useState<ReasoningEffort>(() =>
-    getSavedReasoningEffort(model, defaultEffort),
+    getSavedReasoningEffort(model, defaultEffort, systemDefault),
   );
 
   useEffect(() => {
-    setEffortState(getSavedReasoningEffort(model, defaultEffort));
-  }, [model, defaultEffort]);
+    setEffortState(
+      getSavedReasoningEffort(model, defaultEffort, systemDefault),
+    );
+  }, [model, defaultEffort, systemDefault]);
 
   const setEffort = useCallback(
     (nextEffort: ReasoningEffort) => {
