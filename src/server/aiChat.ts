@@ -1144,9 +1144,18 @@ function parametricTools({
 
 function chatModel(conversation: ConversationAccess, model: Model) {
   if (conversation.type === 'creative') {
+    if (model === 'quality' || model === 'fast' || model === 'ultra') {
+      return (
+        env('LITELLM_CREATIVE_MODEL') ||
+        env('LITELLM_AUXILIARY_MODEL') ||
+        'glm-5.3-flash'
+      );
+    }
     return model
       ? normalizeModelId(model)
-      : env('LITELLM_CREATIVE_MODEL') || 'anthropic/claude-sonnet-4.5';
+      : env('LITELLM_CREATIVE_MODEL') ||
+          env('LITELLM_AUXILIARY_MODEL') ||
+          'glm-5.3-flash';
   }
   return normalizeModelId(model);
 }
