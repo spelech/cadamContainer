@@ -113,6 +113,124 @@ function formatModelName(id: string): string {
     .join(' ');
 }
 
+export function inferProviderFromModel(
+  id: string,
+  name?: string,
+  rawProvider?: string,
+  ownedBy?: string,
+): string {
+  const combined =
+    `${id} ${name ?? ''} ${rawProvider ?? ''} ${ownedBy ?? ''}`.toLowerCase();
+
+  // 1. Google (Gemini, Gemma)
+  if (
+    combined.includes('gemini') ||
+    combined.includes('gemma') ||
+    combined.includes('google')
+  ) {
+    return 'Google';
+  }
+  // 2. Anthropic (Claude)
+  if (combined.includes('claude') || combined.includes('anthropic')) {
+    return 'Anthropic';
+  }
+  // 3. OpenAI (GPT, DALL-E, o1, o3, o4, ChatGPT)
+  if (
+    combined.includes('gpt') ||
+    combined.includes('dall-e') ||
+    combined.includes('dalle') ||
+    combined.includes('chatgpt') ||
+    /\bo[1-9](-[a-z0-9]+)?\b/.test(combined) ||
+    combined.includes('openai')
+  ) {
+    return 'OpenAI';
+  }
+  // 4. DeepSeek
+  if (combined.includes('deepseek')) {
+    return 'DeepSeek';
+  }
+  // 5. Qwen / Alibaba
+  if (combined.includes('qwen') || combined.includes('alibaba')) {
+    return 'Qwen';
+  }
+  // 6. Meta (Llama)
+  if (combined.includes('llama') || combined.includes('meta')) {
+    return 'Meta';
+  }
+  // 7. Mistral (Mistral, Codestral, Pixtral)
+  if (
+    combined.includes('mistral') ||
+    combined.includes('codestral') ||
+    combined.includes('pixtral')
+  ) {
+    return 'Mistral AI';
+  }
+  // 8. Z.AI (GLM)
+  if (
+    combined.includes('glm') ||
+    combined.includes('z-ai') ||
+    combined.includes('zai')
+  ) {
+    return 'Z.AI';
+  }
+  // 9. xAI (Grok)
+  if (
+    combined.includes('grok') ||
+    combined.includes('xai') ||
+    combined.includes('x-ai')
+  ) {
+    return 'xAI';
+  }
+  // 10. Moonshot AI (Kimi)
+  if (combined.includes('kimi') || combined.includes('moonshot')) {
+    return 'Moonshot AI';
+  }
+  // 11. Tencent (Hunyuan, Hy3, Hy4)
+  if (
+    combined.includes('hunyuan') ||
+    combined.includes('hy3') ||
+    combined.includes('hy4') ||
+    combined.includes('tencent')
+  ) {
+    return 'Tencent';
+  }
+  // 12. Stability AI
+  if (combined.includes('stablediffusion') || combined.includes('stability')) {
+    return 'Stability AI';
+  }
+  // 13. Ollama
+  if (combined.includes('ollama')) {
+    return 'Ollama';
+  }
+
+  // If not inferred from model family, use explicit provider/owned_by if valid and not a generic gateway
+  const isGenericGateway = (str?: string) =>
+    Boolean(
+      str &&
+        ['litellm', 'openrouter', 'vertex', 'openai'].includes(
+          str.toLowerCase().trim(),
+        ),
+    );
+
+  if (rawProvider && !isGenericGateway(rawProvider)) {
+    return normalizeProviderName(rawProvider);
+  }
+  if (ownedBy && !isGenericGateway(ownedBy)) {
+    return normalizeProviderName(ownedBy);
+  }
+  if (id.includes('/')) {
+    const prefix = id.split('/')[0];
+    if (!isGenericGateway(prefix)) {
+      return normalizeProviderName(prefix);
+    }
+  }
+
+  if (rawProvider) {
+    return normalizeProviderName(rawProvider);
+  }
+  return 'LiteLLM';
+}
+
 export function transformLiteLLMModels(rawModels: unknown[]): ModelConfig[] {
   if (!Array.isArray(rawModels)) {
     return [];
@@ -138,22 +256,18 @@ export function transformLiteLLMModels(rawModels: unknown[]): ModelConfig[] {
         ? item.model_info
         : {};
 
-    let provider = item.provider;
-    if (!provider && known?.provider) {
-      provider = known.provider;
-    } else if (!provider && item.owned_by) {
-      provider = normalizeProviderName(item.owned_by);
-    } else if (!provider && id.includes('/')) {
-      provider = normalizeProviderName(id.split('/')[0]);
-    } else if (!provider) {
-      provider = 'LiteLLM';
-    }
-
     let name = item.name;
     if (!name && known?.name) {
       name = known.name;
     } else if (!name) {
       name = formatModelName(id);
+    }
+
+    let provider = item.provider;
+    if (!provider && known?.provider) {
+      provider = known.provider;
+    } else {
+      provider = inferProviderFromModel(id, name, item.provider, item.owned_by);
     }
 
     let description = item.description;

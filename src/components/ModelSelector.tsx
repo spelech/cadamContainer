@@ -150,6 +150,8 @@ export function ModelSelector({
           {resolvedModelConfig && (
             <ProviderLogo
               provider={resolvedModelConfig.provider}
+              modelId={resolvedModelConfig.id}
+              modelName={resolvedModelConfig.name}
               className="h-3.5 w-3.5 shrink-0 opacity-80"
             />
           )}
@@ -222,6 +224,8 @@ export function ModelSelector({
             <div className="flex w-full items-start gap-3">
               <ProviderLogo
                 provider={model.provider}
+                modelId={model.id}
+                modelName={model.name}
                 className={cn(
                   'mt-0.5',
                   focused ? 'text-white' : 'text-adam-text-primary',

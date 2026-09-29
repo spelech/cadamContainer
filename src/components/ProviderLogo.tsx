@@ -47,51 +47,94 @@ const PROVIDER_ICONS: Record<string, React.ReactNode> = {
   openrouter: (
     <path d="M12 3a9 9 0 0 0-9 9 9 9 0 0 0 15.36 6.36l-1.42-1.42A7 7 0 1 1 19 12h2a9 9 0 0 0-9-9zm-1 4v6h6v-2h-4V7h-2z" />
   ),
+  tencent: (
+    <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.93V18h-2v-1.07A6 6 0 0 1 6.07 12H7a5 5 0 0 0 4 4.9v-3.83A4 4 0 0 1 8.07 10H7a5 5 0 0 1 4-4.9V4h2v1.1A6 6 0 0 1 17.93 10H17a5 5 0 0 0-4-4.9v3.83A4 4 0 0 1 15.93 12H17a5 5 0 0 1-4 4.93z" />
+  ),
+  stability: <path d="M7 6h10v3H7zm-3 4.5h16v3H4zm3 4.5h10v3H7z" />,
   // Default clean AI sparkle icon fallback for any custom or unrecognized provider
   fallback: (
     <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z" />
   ),
 };
 
-function normalizeProviderKey(provider?: string): string {
-  if (!provider) return 'fallback';
-  const clean = provider.toLowerCase().replace(/[-_ .]+/g, '');
+function normalizeProviderKey(
+  provider?: string,
+  modelId?: string,
+  modelName?: string,
+): string {
+  // If modelId or modelName specifies a known family, that takes precedence over a generic gateway provider
+  const candidate = `${provider ?? ''} ${modelId ?? ''} ${modelName ?? ''}`
+    .toLowerCase()
+    .replace(/[-_ .]+/g, '');
 
-  if (clean.includes('openai') || clean.includes('chatgpt')) return 'openai';
-  if (clean.includes('anthropic') || clean.includes('claude'))
-    return 'anthropic';
   if (
-    clean.includes('google') ||
-    clean.includes('gemini') ||
-    clean.includes('vertex')
-  )
+    candidate.includes('gemini') ||
+    candidate.includes('gemma') ||
+    candidate.includes('google')
+  ) {
     return 'google';
-  if (clean.includes('xai') || clean.includes('grok')) return 'xai';
-  if (clean.includes('moonshot') || clean.includes('kimi')) return 'moonshot';
-  if (clean.includes('deepseek')) return 'deepseek';
-  if (clean.includes('zai') || clean.includes('glm')) return 'zai';
-  if (clean.includes('meta') || clean.includes('llama')) return 'meta';
+  }
+  if (candidate.includes('anthropic') || candidate.includes('claude')) {
+    return 'anthropic';
+  }
   if (
-    clean.includes('mistral') ||
-    clean.includes('codestral') ||
-    clean.includes('pixtral')
-  )
+    candidate.includes('openai') ||
+    candidate.includes('chatgpt') ||
+    candidate.includes('gpt') ||
+    candidate.includes('dalle')
+  ) {
+    return 'openai';
+  }
+  if (candidate.includes('deepseek')) return 'deepseek';
+  if (candidate.includes('qwen') || candidate.includes('alibaba'))
+    return 'qwen';
+  if (candidate.includes('llama') || candidate.includes('meta')) return 'meta';
+  if (
+    candidate.includes('mistral') ||
+    candidate.includes('codestral') ||
+    candidate.includes('pixtral')
+  ) {
     return 'mistral';
-  if (clean.includes('ollama')) return 'ollama';
-  if (clean.includes('qwen') || clean.includes('alibaba')) return 'qwen';
-  if (clean.includes('openrouter')) return 'openrouter';
-  if (clean.includes('litellm')) return 'litellm';
+  }
+  if (candidate.includes('zai') || candidate.includes('glm')) return 'zai';
+  if (candidate.includes('xai') || candidate.includes('grok')) return 'xai';
+  if (candidate.includes('moonshot') || candidate.includes('kimi'))
+    return 'moonshot';
+  if (
+    candidate.includes('hunyuan') ||
+    candidate.includes('hy3') ||
+    candidate.includes('hy4') ||
+    candidate.includes('tencent')
+  ) {
+    return 'tencent';
+  }
+  if (
+    candidate.includes('stablediffusion') ||
+    candidate.includes('stability')
+  ) {
+    return 'stability';
+  }
+  if (candidate.includes('ollama')) return 'ollama';
+  if (candidate.includes('openrouter')) return 'openrouter';
+  if (candidate.includes('litellm')) return 'litellm';
 
   return 'fallback';
 }
 
 interface ProviderLogoProps {
   provider?: string;
+  modelId?: string;
+  modelName?: string;
   className?: string;
 }
 
-export function ProviderLogo({ provider, className }: ProviderLogoProps) {
-  const key = normalizeProviderKey(provider);
+export function ProviderLogo({
+  provider,
+  modelId,
+  modelName,
+  className,
+}: ProviderLogoProps) {
+  const key = normalizeProviderKey(provider, modelId, modelName);
   const icon = PROVIDER_ICONS[key] || PROVIDER_ICONS.fallback;
 
   return (
