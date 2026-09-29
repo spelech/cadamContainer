@@ -40,9 +40,40 @@ function serveOpenScadWasmInDev(): Plugin {
   };
 }
 
+function mockClientModules(): Plugin {
+  const emptyMock = path.resolve(__dirname, './src/lib/emptyMock.ts');
+  return {
+    name: 'mock-client-modules',
+    enforce: 'pre',
+    resolveId(id, _importer, options) {
+      const envName = this.environment?.name;
+      const isClient =
+        envName === 'client' ||
+        (!options?.ssr && envName !== 'ssr' && envName !== 'nitro');
+
+      if (isClient) {
+        if (
+          id === 'pg' ||
+          id.startsWith('pg/') ||
+          id === 'pg-types' ||
+          id === 'pg-protocol' ||
+          id === 'pgpass' ||
+          id === '@/server/db' ||
+          id.endsWith('/server/db') ||
+          id.endsWith('/server/db.ts')
+        ) {
+          return emptyMock;
+        }
+      }
+      return null;
+    },
+  };
+}
+
 export default defineConfig({
   base: appBase,
   plugins: [
+    mockClientModules(),
     serveOpenScadWasmInDev(),
     tanstackStart({
       router: {
@@ -67,6 +98,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@shared': path.resolve(__dirname, './shared'),
+      'node:buffer': 'buffer',
     },
   },
   build: {

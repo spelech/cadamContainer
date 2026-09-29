@@ -1,5 +1,4 @@
 import type { AuthUser } from './auth';
-import { getSessionUser } from './auth';
 
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,6 +31,7 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export async function requireUser(request: Request): Promise<AuthUser> {
+  const { getSessionUser } = await import('./auth');
   const user = await getSessionUser(request);
   if (!user?.email) throw new Error('Unauthorized');
   return user;

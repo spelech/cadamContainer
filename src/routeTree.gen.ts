@@ -8,364 +8,373 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as UpdatePasswordRouteImport } from './routes/update-password'
-import { Route as TermsOfServiceRouteImport } from './routes/terms-of-service'
-import { Route as SignupEmailRouteImport } from './routes/signup-email'
-import { Route as SignupRouteImport } from './routes/signup'
-import { Route as SigninRouteImport } from './routes/signin'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
-import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
-import { Route as LayoutRouteImport } from './routes/_layout'
-import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
-import { Route as AssetsSplatRouteImport } from './routes/assets.$'
-import { Route as ApiTitleGeneratorRouteImport } from './routes/api/title-generator'
-import { Route as ApiPromptGeneratorRouteImport } from './routes/api/prompt-generator'
-import { Route as ApiParametricChatRouteImport } from './routes/api/parametric-chat'
-import { Route as ApiModelsRouteImport } from './routes/api/models'
-import { Route as ApiMessagesRouteImport } from './routes/api/messages'
-import { Route as ApiMeshRouteImport } from './routes/api/mesh'
-import { Route as ApiFalWebhookRouteImport } from './routes/api/fal-webhook'
-import { Route as ApiDeleteUserRouteImport } from './routes/api/delete-user'
-import { Route as ApiCreativeChatRouteImport } from './routes/api/creative-chat'
-import { Route as ApiConversationsRouteImport } from './routes/api/conversations'
-import { Route as ApiBillingStatusRouteImport } from './routes/api/billing-status'
-import { Route as ApiBillingProductsRouteImport } from './routes/api/billing-products'
-import { Route as ApiBillingCheckoutRouteImport } from './routes/api/billing-checkout'
-import { Route as LayoutSubscriptionRouteImport } from './routes/_layout/subscription'
-import { Route as LayoutAuthRouteImport } from './routes/_layout/_auth'
-import { Route as LayoutSplatRouteImport } from './routes/_layout/$'
-import { Route as ApiStorageSplatRouteImport } from './routes/api/storage/$'
-import { Route as ApiJacksonPollockSplatRouteImport } from './routes/api/jackson-pollock/$'
-import { Route as ApiConversationsIdRouteImport } from './routes/api/conversations/$id'
-import { Route as ApiAuthMeRouteImport } from './routes/api/auth/me'
-import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
-import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
-import { Route as ApiAuthCallbackRouteImport } from './routes/api/auth/callback'
-import { Route as LayoutShareIdRouteImport } from './routes/_layout/share/$id'
-import { Route as LayoutAuthSettingsRouteImport } from './routes/_layout/_auth/settings'
-import { Route as LayoutAuthHistoryRouteImport } from './routes/_layout/_auth/history'
-import { Route as ApiInternalAccountDeleteRouteImport } from './routes/api/internal/account/delete'
-import { Route as LayoutAuthEditorIdRouteImport } from './routes/_layout/_auth/editor/$id'
+import { Route as rootRouteImport } from './routes/__root';
+import { Route as UpdatePasswordRouteImport } from './routes/update-password';
+import { Route as TermsOfServiceRouteImport } from './routes/terms-of-service';
+import { Route as SignupEmailRouteImport } from './routes/signup-email';
+import { Route as SignupRouteImport } from './routes/signup';
+import { Route as SigninRouteImport } from './routes/signin';
+import { Route as ResetPasswordRouteImport } from './routes/reset-password';
+import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy';
+import { Route as ConfirmEmailRouteImport } from './routes/confirm-email';
+import { Route as LayoutRouteImport } from './routes/_layout';
+import { Route as LayoutIndexRouteImport } from './routes/_layout/index';
+import { Route as AssetsSplatRouteImport } from './routes/assets.$';
+import { Route as ApiTitleGeneratorRouteImport } from './routes/api/title-generator';
+import { Route as ApiSystemSettingsRouteImport } from './routes/api/system-settings';
+import { Route as ApiPromptGeneratorRouteImport } from './routes/api/prompt-generator';
+import { Route as ApiParametricChatRouteImport } from './routes/api/parametric-chat';
+import { Route as ApiModelsRouteImport } from './routes/api/models';
+import { Route as ApiMessagesRouteImport } from './routes/api/messages';
+import { Route as ApiMeshRouteImport } from './routes/api/mesh';
+import { Route as ApiFalWebhookRouteImport } from './routes/api/fal-webhook';
+import { Route as ApiDeleteUserRouteImport } from './routes/api/delete-user';
+import { Route as ApiCreativeChatRouteImport } from './routes/api/creative-chat';
+import { Route as ApiConversationsRouteImport } from './routes/api/conversations';
+import { Route as ApiBillingStatusRouteImport } from './routes/api/billing-status';
+import { Route as ApiBillingProductsRouteImport } from './routes/api/billing-products';
+import { Route as ApiBillingCheckoutRouteImport } from './routes/api/billing-checkout';
+import { Route as LayoutSubscriptionRouteImport } from './routes/_layout/subscription';
+import { Route as LayoutAuthRouteImport } from './routes/_layout/_auth';
+import { Route as LayoutSplatRouteImport } from './routes/_layout/$';
+import { Route as ApiStorageSplatRouteImport } from './routes/api/storage/$';
+import { Route as ApiJacksonPollockSplatRouteImport } from './routes/api/jackson-pollock/$';
+import { Route as ApiConversationsIdRouteImport } from './routes/api/conversations/$id';
+import { Route as ApiAuthMeRouteImport } from './routes/api/auth/me';
+import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout';
+import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login';
+import { Route as ApiAuthCallbackRouteImport } from './routes/api/auth/callback';
+import { Route as LayoutShareIdRouteImport } from './routes/_layout/share/$id';
+import { Route as LayoutAuthSettingsRouteImport } from './routes/_layout/_auth/settings';
+import { Route as LayoutAuthHistoryRouteImport } from './routes/_layout/_auth/history';
+import { Route as ApiInternalAccountDeleteRouteImport } from './routes/api/internal/account/delete';
+import { Route as LayoutAuthEditorIdRouteImport } from './routes/_layout/_auth/editor/$id';
 
 const UpdatePasswordRoute = UpdatePasswordRouteImport.update({
   id: '/update-password',
   path: '/update-password',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const TermsOfServiceRoute = TermsOfServiceRouteImport.update({
   id: '/terms-of-service',
   path: '/terms-of-service',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SignupEmailRoute = SignupEmailRouteImport.update({
   id: '/signup-email',
   path: '/signup-email',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
   path: '/signin',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
   id: '/privacy-policy',
   path: '/privacy-policy',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
   id: '/confirm-email',
   path: '/confirm-email',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const LayoutRoute = LayoutRouteImport.update({
   id: '/_layout',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const LayoutIndexRoute = LayoutIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => LayoutRoute,
-} as any)
+} as any);
 const AssetsSplatRoute = AssetsSplatRouteImport.update({
   id: '/assets/$',
   path: '/assets/$',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiTitleGeneratorRoute = ApiTitleGeneratorRouteImport.update({
   id: '/api/title-generator',
   path: '/api/title-generator',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
+const ApiSystemSettingsRoute = ApiSystemSettingsRouteImport.update({
+  id: '/api/system-settings',
+  path: '/api/system-settings',
+  getParentRoute: () => rootRouteImport,
+} as any);
 const ApiPromptGeneratorRoute = ApiPromptGeneratorRouteImport.update({
   id: '/api/prompt-generator',
   path: '/api/prompt-generator',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiParametricChatRoute = ApiParametricChatRouteImport.update({
   id: '/api/parametric-chat',
   path: '/api/parametric-chat',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiModelsRoute = ApiModelsRouteImport.update({
   id: '/api/models',
   path: '/api/models',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiMessagesRoute = ApiMessagesRouteImport.update({
   id: '/api/messages',
   path: '/api/messages',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiMeshRoute = ApiMeshRouteImport.update({
   id: '/api/mesh',
   path: '/api/mesh',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiFalWebhookRoute = ApiFalWebhookRouteImport.update({
   id: '/api/fal-webhook',
   path: '/api/fal-webhook',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiDeleteUserRoute = ApiDeleteUserRouteImport.update({
   id: '/api/delete-user',
   path: '/api/delete-user',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiCreativeChatRoute = ApiCreativeChatRouteImport.update({
   id: '/api/creative-chat',
   path: '/api/creative-chat',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiConversationsRoute = ApiConversationsRouteImport.update({
   id: '/api/conversations',
   path: '/api/conversations',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiBillingStatusRoute = ApiBillingStatusRouteImport.update({
   id: '/api/billing-status',
   path: '/api/billing-status',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiBillingProductsRoute = ApiBillingProductsRouteImport.update({
   id: '/api/billing-products',
   path: '/api/billing-products',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiBillingCheckoutRoute = ApiBillingCheckoutRouteImport.update({
   id: '/api/billing-checkout',
   path: '/api/billing-checkout',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const LayoutSubscriptionRoute = LayoutSubscriptionRouteImport.update({
   id: '/subscription',
   path: '/subscription',
   getParentRoute: () => LayoutRoute,
-} as any)
+} as any);
 const LayoutAuthRoute = LayoutAuthRouteImport.update({
   id: '/_auth',
   getParentRoute: () => LayoutRoute,
-} as any)
+} as any);
 const LayoutSplatRoute = LayoutSplatRouteImport.update({
   id: '/$',
   path: '/$',
   getParentRoute: () => LayoutRoute,
-} as any)
+} as any);
 const ApiStorageSplatRoute = ApiStorageSplatRouteImport.update({
   id: '/api/storage/$',
   path: '/api/storage/$',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiJacksonPollockSplatRoute = ApiJacksonPollockSplatRouteImport.update({
   id: '/api/jackson-pollock/$',
   path: '/api/jackson-pollock/$',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiConversationsIdRoute = ApiConversationsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => ApiConversationsRoute,
-} as any)
+} as any);
 const ApiAuthMeRoute = ApiAuthMeRouteImport.update({
   id: '/api/auth/me',
   path: '/api/auth/me',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
   id: '/api/auth/logout',
   path: '/api/auth/logout',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
   id: '/api/auth/login',
   path: '/api/auth/login',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiAuthCallbackRoute = ApiAuthCallbackRouteImport.update({
   id: '/api/auth/callback',
   path: '/api/auth/callback',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const LayoutShareIdRoute = LayoutShareIdRouteImport.update({
   id: '/share/$id',
   path: '/share/$id',
   getParentRoute: () => LayoutRoute,
-} as any)
+} as any);
 const LayoutAuthSettingsRoute = LayoutAuthSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => LayoutAuthRoute,
-} as any)
+} as any);
 const LayoutAuthHistoryRoute = LayoutAuthHistoryRouteImport.update({
   id: '/history',
   path: '/history',
   getParentRoute: () => LayoutAuthRoute,
-} as any)
+} as any);
 const ApiInternalAccountDeleteRoute =
   ApiInternalAccountDeleteRouteImport.update({
     id: '/api/internal/account/delete',
     path: '/api/internal/account/delete',
     getParentRoute: () => rootRouteImport,
-  } as any)
+  } as any);
 const LayoutAuthEditorIdRoute = LayoutAuthEditorIdRouteImport.update({
   id: '/editor/$id',
   path: '/editor/$id',
   getParentRoute: () => LayoutAuthRoute,
-} as any)
+} as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof LayoutIndexRoute
-  '/confirm-email': typeof ConfirmEmailRoute
-  '/privacy-policy': typeof PrivacyPolicyRoute
-  '/reset-password': typeof ResetPasswordRoute
-  '/signin': typeof SigninRoute
-  '/signup': typeof SignupRoute
-  '/signup-email': typeof SignupEmailRoute
-  '/terms-of-service': typeof TermsOfServiceRoute
-  '/update-password': typeof UpdatePasswordRoute
-  '/$': typeof LayoutSplatRoute
-  '/subscription': typeof LayoutSubscriptionRoute
-  '/api/billing-checkout': typeof ApiBillingCheckoutRoute
-  '/api/billing-products': typeof ApiBillingProductsRoute
-  '/api/billing-status': typeof ApiBillingStatusRoute
-  '/api/conversations': typeof ApiConversationsRouteWithChildren
-  '/api/creative-chat': typeof ApiCreativeChatRoute
-  '/api/delete-user': typeof ApiDeleteUserRoute
-  '/api/fal-webhook': typeof ApiFalWebhookRoute
-  '/api/mesh': typeof ApiMeshRoute
-  '/api/messages': typeof ApiMessagesRoute
-  '/api/models': typeof ApiModelsRoute
-  '/api/parametric-chat': typeof ApiParametricChatRoute
-  '/api/prompt-generator': typeof ApiPromptGeneratorRoute
-  '/api/title-generator': typeof ApiTitleGeneratorRoute
-  '/assets/$': typeof AssetsSplatRoute
-  '/history': typeof LayoutAuthHistoryRoute
-  '/settings': typeof LayoutAuthSettingsRoute
-  '/share/$id': typeof LayoutShareIdRoute
-  '/api/auth/callback': typeof ApiAuthCallbackRoute
-  '/api/auth/login': typeof ApiAuthLoginRoute
-  '/api/auth/logout': typeof ApiAuthLogoutRoute
-  '/api/auth/me': typeof ApiAuthMeRoute
-  '/api/conversations/$id': typeof ApiConversationsIdRoute
-  '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute
-  '/api/storage/$': typeof ApiStorageSplatRoute
-  '/editor/$id': typeof LayoutAuthEditorIdRoute
-  '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute
+  '/': typeof LayoutIndexRoute;
+  '/confirm-email': typeof ConfirmEmailRoute;
+  '/privacy-policy': typeof PrivacyPolicyRoute;
+  '/reset-password': typeof ResetPasswordRoute;
+  '/signin': typeof SigninRoute;
+  '/signup': typeof SignupRoute;
+  '/signup-email': typeof SignupEmailRoute;
+  '/terms-of-service': typeof TermsOfServiceRoute;
+  '/update-password': typeof UpdatePasswordRoute;
+  '/$': typeof LayoutSplatRoute;
+  '/subscription': typeof LayoutSubscriptionRoute;
+  '/api/billing-checkout': typeof ApiBillingCheckoutRoute;
+  '/api/billing-products': typeof ApiBillingProductsRoute;
+  '/api/billing-status': typeof ApiBillingStatusRoute;
+  '/api/conversations': typeof ApiConversationsRouteWithChildren;
+  '/api/creative-chat': typeof ApiCreativeChatRoute;
+  '/api/delete-user': typeof ApiDeleteUserRoute;
+  '/api/fal-webhook': typeof ApiFalWebhookRoute;
+  '/api/mesh': typeof ApiMeshRoute;
+  '/api/messages': typeof ApiMessagesRoute;
+  '/api/models': typeof ApiModelsRoute;
+  '/api/parametric-chat': typeof ApiParametricChatRoute;
+  '/api/prompt-generator': typeof ApiPromptGeneratorRoute;
+  '/api/system-settings': typeof ApiSystemSettingsRoute;
+  '/api/title-generator': typeof ApiTitleGeneratorRoute;
+  '/assets/$': typeof AssetsSplatRoute;
+  '/history': typeof LayoutAuthHistoryRoute;
+  '/settings': typeof LayoutAuthSettingsRoute;
+  '/share/$id': typeof LayoutShareIdRoute;
+  '/api/auth/callback': typeof ApiAuthCallbackRoute;
+  '/api/auth/login': typeof ApiAuthLoginRoute;
+  '/api/auth/logout': typeof ApiAuthLogoutRoute;
+  '/api/auth/me': typeof ApiAuthMeRoute;
+  '/api/conversations/$id': typeof ApiConversationsIdRoute;
+  '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute;
+  '/api/storage/$': typeof ApiStorageSplatRoute;
+  '/editor/$id': typeof LayoutAuthEditorIdRoute;
+  '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute;
 }
 export interface FileRoutesByTo {
-  '/confirm-email': typeof ConfirmEmailRoute
-  '/privacy-policy': typeof PrivacyPolicyRoute
-  '/reset-password': typeof ResetPasswordRoute
-  '/signin': typeof SigninRoute
-  '/signup': typeof SignupRoute
-  '/signup-email': typeof SignupEmailRoute
-  '/terms-of-service': typeof TermsOfServiceRoute
-  '/update-password': typeof UpdatePasswordRoute
-  '/$': typeof LayoutSplatRoute
-  '/': typeof LayoutIndexRoute
-  '/subscription': typeof LayoutSubscriptionRoute
-  '/api/billing-checkout': typeof ApiBillingCheckoutRoute
-  '/api/billing-products': typeof ApiBillingProductsRoute
-  '/api/billing-status': typeof ApiBillingStatusRoute
-  '/api/conversations': typeof ApiConversationsRouteWithChildren
-  '/api/creative-chat': typeof ApiCreativeChatRoute
-  '/api/delete-user': typeof ApiDeleteUserRoute
-  '/api/fal-webhook': typeof ApiFalWebhookRoute
-  '/api/mesh': typeof ApiMeshRoute
-  '/api/messages': typeof ApiMessagesRoute
-  '/api/models': typeof ApiModelsRoute
-  '/api/parametric-chat': typeof ApiParametricChatRoute
-  '/api/prompt-generator': typeof ApiPromptGeneratorRoute
-  '/api/title-generator': typeof ApiTitleGeneratorRoute
-  '/assets/$': typeof AssetsSplatRoute
-  '/history': typeof LayoutAuthHistoryRoute
-  '/settings': typeof LayoutAuthSettingsRoute
-  '/share/$id': typeof LayoutShareIdRoute
-  '/api/auth/callback': typeof ApiAuthCallbackRoute
-  '/api/auth/login': typeof ApiAuthLoginRoute
-  '/api/auth/logout': typeof ApiAuthLogoutRoute
-  '/api/auth/me': typeof ApiAuthMeRoute
-  '/api/conversations/$id': typeof ApiConversationsIdRoute
-  '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute
-  '/api/storage/$': typeof ApiStorageSplatRoute
-  '/editor/$id': typeof LayoutAuthEditorIdRoute
-  '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute
+  '/confirm-email': typeof ConfirmEmailRoute;
+  '/privacy-policy': typeof PrivacyPolicyRoute;
+  '/reset-password': typeof ResetPasswordRoute;
+  '/signin': typeof SigninRoute;
+  '/signup': typeof SignupRoute;
+  '/signup-email': typeof SignupEmailRoute;
+  '/terms-of-service': typeof TermsOfServiceRoute;
+  '/update-password': typeof UpdatePasswordRoute;
+  '/$': typeof LayoutSplatRoute;
+  '/': typeof LayoutIndexRoute;
+  '/subscription': typeof LayoutSubscriptionRoute;
+  '/api/billing-checkout': typeof ApiBillingCheckoutRoute;
+  '/api/billing-products': typeof ApiBillingProductsRoute;
+  '/api/billing-status': typeof ApiBillingStatusRoute;
+  '/api/conversations': typeof ApiConversationsRouteWithChildren;
+  '/api/creative-chat': typeof ApiCreativeChatRoute;
+  '/api/delete-user': typeof ApiDeleteUserRoute;
+  '/api/fal-webhook': typeof ApiFalWebhookRoute;
+  '/api/mesh': typeof ApiMeshRoute;
+  '/api/messages': typeof ApiMessagesRoute;
+  '/api/models': typeof ApiModelsRoute;
+  '/api/parametric-chat': typeof ApiParametricChatRoute;
+  '/api/prompt-generator': typeof ApiPromptGeneratorRoute;
+  '/api/system-settings': typeof ApiSystemSettingsRoute;
+  '/api/title-generator': typeof ApiTitleGeneratorRoute;
+  '/assets/$': typeof AssetsSplatRoute;
+  '/history': typeof LayoutAuthHistoryRoute;
+  '/settings': typeof LayoutAuthSettingsRoute;
+  '/share/$id': typeof LayoutShareIdRoute;
+  '/api/auth/callback': typeof ApiAuthCallbackRoute;
+  '/api/auth/login': typeof ApiAuthLoginRoute;
+  '/api/auth/logout': typeof ApiAuthLogoutRoute;
+  '/api/auth/me': typeof ApiAuthMeRoute;
+  '/api/conversations/$id': typeof ApiConversationsIdRoute;
+  '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute;
+  '/api/storage/$': typeof ApiStorageSplatRoute;
+  '/editor/$id': typeof LayoutAuthEditorIdRoute;
+  '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/_layout': typeof LayoutRouteWithChildren
-  '/confirm-email': typeof ConfirmEmailRoute
-  '/privacy-policy': typeof PrivacyPolicyRoute
-  '/reset-password': typeof ResetPasswordRoute
-  '/signin': typeof SigninRoute
-  '/signup': typeof SignupRoute
-  '/signup-email': typeof SignupEmailRoute
-  '/terms-of-service': typeof TermsOfServiceRoute
-  '/update-password': typeof UpdatePasswordRoute
-  '/_layout/$': typeof LayoutSplatRoute
-  '/_layout/_auth': typeof LayoutAuthRouteWithChildren
-  '/_layout/subscription': typeof LayoutSubscriptionRoute
-  '/api/billing-checkout': typeof ApiBillingCheckoutRoute
-  '/api/billing-products': typeof ApiBillingProductsRoute
-  '/api/billing-status': typeof ApiBillingStatusRoute
-  '/api/conversations': typeof ApiConversationsRouteWithChildren
-  '/api/creative-chat': typeof ApiCreativeChatRoute
-  '/api/delete-user': typeof ApiDeleteUserRoute
-  '/api/fal-webhook': typeof ApiFalWebhookRoute
-  '/api/mesh': typeof ApiMeshRoute
-  '/api/messages': typeof ApiMessagesRoute
-  '/api/models': typeof ApiModelsRoute
-  '/api/parametric-chat': typeof ApiParametricChatRoute
-  '/api/prompt-generator': typeof ApiPromptGeneratorRoute
-  '/api/title-generator': typeof ApiTitleGeneratorRoute
-  '/assets/$': typeof AssetsSplatRoute
-  '/_layout/': typeof LayoutIndexRoute
-  '/_layout/_auth/history': typeof LayoutAuthHistoryRoute
-  '/_layout/_auth/settings': typeof LayoutAuthSettingsRoute
-  '/_layout/share/$id': typeof LayoutShareIdRoute
-  '/api/auth/callback': typeof ApiAuthCallbackRoute
-  '/api/auth/login': typeof ApiAuthLoginRoute
-  '/api/auth/logout': typeof ApiAuthLogoutRoute
-  '/api/auth/me': typeof ApiAuthMeRoute
-  '/api/conversations/$id': typeof ApiConversationsIdRoute
-  '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute
-  '/api/storage/$': typeof ApiStorageSplatRoute
-  '/_layout/_auth/editor/$id': typeof LayoutAuthEditorIdRoute
-  '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute
+  __root__: typeof rootRouteImport;
+  '/_layout': typeof LayoutRouteWithChildren;
+  '/confirm-email': typeof ConfirmEmailRoute;
+  '/privacy-policy': typeof PrivacyPolicyRoute;
+  '/reset-password': typeof ResetPasswordRoute;
+  '/signin': typeof SigninRoute;
+  '/signup': typeof SignupRoute;
+  '/signup-email': typeof SignupEmailRoute;
+  '/terms-of-service': typeof TermsOfServiceRoute;
+  '/update-password': typeof UpdatePasswordRoute;
+  '/_layout/$': typeof LayoutSplatRoute;
+  '/_layout/_auth': typeof LayoutAuthRouteWithChildren;
+  '/_layout/subscription': typeof LayoutSubscriptionRoute;
+  '/api/billing-checkout': typeof ApiBillingCheckoutRoute;
+  '/api/billing-products': typeof ApiBillingProductsRoute;
+  '/api/billing-status': typeof ApiBillingStatusRoute;
+  '/api/conversations': typeof ApiConversationsRouteWithChildren;
+  '/api/creative-chat': typeof ApiCreativeChatRoute;
+  '/api/delete-user': typeof ApiDeleteUserRoute;
+  '/api/fal-webhook': typeof ApiFalWebhookRoute;
+  '/api/mesh': typeof ApiMeshRoute;
+  '/api/messages': typeof ApiMessagesRoute;
+  '/api/models': typeof ApiModelsRoute;
+  '/api/parametric-chat': typeof ApiParametricChatRoute;
+  '/api/prompt-generator': typeof ApiPromptGeneratorRoute;
+  '/api/system-settings': typeof ApiSystemSettingsRoute;
+  '/api/title-generator': typeof ApiTitleGeneratorRoute;
+  '/assets/$': typeof AssetsSplatRoute;
+  '/_layout/': typeof LayoutIndexRoute;
+  '/_layout/_auth/history': typeof LayoutAuthHistoryRoute;
+  '/_layout/_auth/settings': typeof LayoutAuthSettingsRoute;
+  '/_layout/share/$id': typeof LayoutShareIdRoute;
+  '/api/auth/callback': typeof ApiAuthCallbackRoute;
+  '/api/auth/login': typeof ApiAuthLoginRoute;
+  '/api/auth/logout': typeof ApiAuthLogoutRoute;
+  '/api/auth/me': typeof ApiAuthMeRoute;
+  '/api/conversations/$id': typeof ApiConversationsIdRoute;
+  '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute;
+  '/api/storage/$': typeof ApiStorageSplatRoute;
+  '/_layout/_auth/editor/$id': typeof LayoutAuthEditorIdRoute;
+  '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
+  fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
     | '/'
     | '/confirm-email'
@@ -390,6 +399,7 @@ export interface FileRouteTypes {
     | '/api/models'
     | '/api/parametric-chat'
     | '/api/prompt-generator'
+    | '/api/system-settings'
     | '/api/title-generator'
     | '/assets/$'
     | '/history'
@@ -403,8 +413,8 @@ export interface FileRouteTypes {
     | '/api/jackson-pollock/$'
     | '/api/storage/$'
     | '/editor/$id'
-    | '/api/internal/account/delete'
-  fileRoutesByTo: FileRoutesByTo
+    | '/api/internal/account/delete';
+  fileRoutesByTo: FileRoutesByTo;
   to:
     | '/confirm-email'
     | '/privacy-policy'
@@ -429,6 +439,7 @@ export interface FileRouteTypes {
     | '/api/models'
     | '/api/parametric-chat'
     | '/api/prompt-generator'
+    | '/api/system-settings'
     | '/api/title-generator'
     | '/assets/$'
     | '/history'
@@ -442,7 +453,7 @@ export interface FileRouteTypes {
     | '/api/jackson-pollock/$'
     | '/api/storage/$'
     | '/editor/$id'
-    | '/api/internal/account/delete'
+    | '/api/internal/account/delete';
   id:
     | '__root__'
     | '/_layout'
@@ -469,6 +480,7 @@ export interface FileRouteTypes {
     | '/api/models'
     | '/api/parametric-chat'
     | '/api/prompt-generator'
+    | '/api/system-settings'
     | '/api/title-generator'
     | '/assets/$'
     | '/_layout/'
@@ -483,342 +495,350 @@ export interface FileRouteTypes {
     | '/api/jackson-pollock/$'
     | '/api/storage/$'
     | '/_layout/_auth/editor/$id'
-    | '/api/internal/account/delete'
-  fileRoutesById: FileRoutesById
+    | '/api/internal/account/delete';
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  LayoutRoute: typeof LayoutRouteWithChildren
-  ConfirmEmailRoute: typeof ConfirmEmailRoute
-  PrivacyPolicyRoute: typeof PrivacyPolicyRoute
-  ResetPasswordRoute: typeof ResetPasswordRoute
-  SigninRoute: typeof SigninRoute
-  SignupRoute: typeof SignupRoute
-  SignupEmailRoute: typeof SignupEmailRoute
-  TermsOfServiceRoute: typeof TermsOfServiceRoute
-  UpdatePasswordRoute: typeof UpdatePasswordRoute
-  ApiBillingCheckoutRoute: typeof ApiBillingCheckoutRoute
-  ApiBillingProductsRoute: typeof ApiBillingProductsRoute
-  ApiBillingStatusRoute: typeof ApiBillingStatusRoute
-  ApiConversationsRoute: typeof ApiConversationsRouteWithChildren
-  ApiCreativeChatRoute: typeof ApiCreativeChatRoute
-  ApiDeleteUserRoute: typeof ApiDeleteUserRoute
-  ApiFalWebhookRoute: typeof ApiFalWebhookRoute
-  ApiMeshRoute: typeof ApiMeshRoute
-  ApiMessagesRoute: typeof ApiMessagesRoute
-  ApiModelsRoute: typeof ApiModelsRoute
-  ApiParametricChatRoute: typeof ApiParametricChatRoute
-  ApiPromptGeneratorRoute: typeof ApiPromptGeneratorRoute
-  ApiTitleGeneratorRoute: typeof ApiTitleGeneratorRoute
-  AssetsSplatRoute: typeof AssetsSplatRoute
-  ApiAuthCallbackRoute: typeof ApiAuthCallbackRoute
-  ApiAuthLoginRoute: typeof ApiAuthLoginRoute
-  ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
-  ApiAuthMeRoute: typeof ApiAuthMeRoute
-  ApiJacksonPollockSplatRoute: typeof ApiJacksonPollockSplatRoute
-  ApiStorageSplatRoute: typeof ApiStorageSplatRoute
-  ApiInternalAccountDeleteRoute: typeof ApiInternalAccountDeleteRoute
+  LayoutRoute: typeof LayoutRouteWithChildren;
+  ConfirmEmailRoute: typeof ConfirmEmailRoute;
+  PrivacyPolicyRoute: typeof PrivacyPolicyRoute;
+  ResetPasswordRoute: typeof ResetPasswordRoute;
+  SigninRoute: typeof SigninRoute;
+  SignupRoute: typeof SignupRoute;
+  SignupEmailRoute: typeof SignupEmailRoute;
+  TermsOfServiceRoute: typeof TermsOfServiceRoute;
+  UpdatePasswordRoute: typeof UpdatePasswordRoute;
+  ApiBillingCheckoutRoute: typeof ApiBillingCheckoutRoute;
+  ApiBillingProductsRoute: typeof ApiBillingProductsRoute;
+  ApiBillingStatusRoute: typeof ApiBillingStatusRoute;
+  ApiConversationsRoute: typeof ApiConversationsRouteWithChildren;
+  ApiCreativeChatRoute: typeof ApiCreativeChatRoute;
+  ApiDeleteUserRoute: typeof ApiDeleteUserRoute;
+  ApiFalWebhookRoute: typeof ApiFalWebhookRoute;
+  ApiMeshRoute: typeof ApiMeshRoute;
+  ApiMessagesRoute: typeof ApiMessagesRoute;
+  ApiModelsRoute: typeof ApiModelsRoute;
+  ApiParametricChatRoute: typeof ApiParametricChatRoute;
+  ApiPromptGeneratorRoute: typeof ApiPromptGeneratorRoute;
+  ApiSystemSettingsRoute: typeof ApiSystemSettingsRoute;
+  ApiTitleGeneratorRoute: typeof ApiTitleGeneratorRoute;
+  AssetsSplatRoute: typeof AssetsSplatRoute;
+  ApiAuthCallbackRoute: typeof ApiAuthCallbackRoute;
+  ApiAuthLoginRoute: typeof ApiAuthLoginRoute;
+  ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute;
+  ApiAuthMeRoute: typeof ApiAuthMeRoute;
+  ApiJacksonPollockSplatRoute: typeof ApiJacksonPollockSplatRoute;
+  ApiStorageSplatRoute: typeof ApiStorageSplatRoute;
+  ApiInternalAccountDeleteRoute: typeof ApiInternalAccountDeleteRoute;
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
     '/update-password': {
-      id: '/update-password'
-      path: '/update-password'
-      fullPath: '/update-password'
-      preLoaderRoute: typeof UpdatePasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/update-password';
+      path: '/update-password';
+      fullPath: '/update-password';
+      preLoaderRoute: typeof UpdatePasswordRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/terms-of-service': {
-      id: '/terms-of-service'
-      path: '/terms-of-service'
-      fullPath: '/terms-of-service'
-      preLoaderRoute: typeof TermsOfServiceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/terms-of-service';
+      path: '/terms-of-service';
+      fullPath: '/terms-of-service';
+      preLoaderRoute: typeof TermsOfServiceRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/signup-email': {
-      id: '/signup-email'
-      path: '/signup-email'
-      fullPath: '/signup-email'
-      preLoaderRoute: typeof SignupEmailRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/signup-email';
+      path: '/signup-email';
+      fullPath: '/signup-email';
+      preLoaderRoute: typeof SignupEmailRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/signup';
+      path: '/signup';
+      fullPath: '/signup';
+      preLoaderRoute: typeof SignupRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/signin': {
-      id: '/signin'
-      path: '/signin'
-      fullPath: '/signin'
-      preLoaderRoute: typeof SigninRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/signin';
+      path: '/signin';
+      fullPath: '/signin';
+      preLoaderRoute: typeof SigninRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/reset-password';
+      path: '/reset-password';
+      fullPath: '/reset-password';
+      preLoaderRoute: typeof ResetPasswordRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/privacy-policy': {
-      id: '/privacy-policy'
-      path: '/privacy-policy'
-      fullPath: '/privacy-policy'
-      preLoaderRoute: typeof PrivacyPolicyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/privacy-policy';
+      path: '/privacy-policy';
+      fullPath: '/privacy-policy';
+      preLoaderRoute: typeof PrivacyPolicyRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/confirm-email': {
-      id: '/confirm-email'
-      path: '/confirm-email'
-      fullPath: '/confirm-email'
-      preLoaderRoute: typeof ConfirmEmailRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/confirm-email';
+      path: '/confirm-email';
+      fullPath: '/confirm-email';
+      preLoaderRoute: typeof ConfirmEmailRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/_layout': {
-      id: '/_layout'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof LayoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/_layout';
+      path: '';
+      fullPath: '/';
+      preLoaderRoute: typeof LayoutRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/_layout/': {
-      id: '/_layout/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof LayoutIndexRouteImport
-      parentRoute: typeof LayoutRoute
-    }
+      id: '/_layout/';
+      path: '/';
+      fullPath: '/';
+      preLoaderRoute: typeof LayoutIndexRouteImport;
+      parentRoute: typeof LayoutRoute;
+    };
     '/assets/$': {
-      id: '/assets/$'
-      path: '/assets/$'
-      fullPath: '/assets/$'
-      preLoaderRoute: typeof AssetsSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/assets/$';
+      path: '/assets/$';
+      fullPath: '/assets/$';
+      preLoaderRoute: typeof AssetsSplatRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/title-generator': {
-      id: '/api/title-generator'
-      path: '/api/title-generator'
-      fullPath: '/api/title-generator'
-      preLoaderRoute: typeof ApiTitleGeneratorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/title-generator';
+      path: '/api/title-generator';
+      fullPath: '/api/title-generator';
+      preLoaderRoute: typeof ApiTitleGeneratorRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/api/system-settings': {
+      id: '/api/system-settings';
+      path: '/api/system-settings';
+      fullPath: '/api/system-settings';
+      preLoaderRoute: typeof ApiSystemSettingsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/prompt-generator': {
-      id: '/api/prompt-generator'
-      path: '/api/prompt-generator'
-      fullPath: '/api/prompt-generator'
-      preLoaderRoute: typeof ApiPromptGeneratorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/prompt-generator';
+      path: '/api/prompt-generator';
+      fullPath: '/api/prompt-generator';
+      preLoaderRoute: typeof ApiPromptGeneratorRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/parametric-chat': {
-      id: '/api/parametric-chat'
-      path: '/api/parametric-chat'
-      fullPath: '/api/parametric-chat'
-      preLoaderRoute: typeof ApiParametricChatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/parametric-chat';
+      path: '/api/parametric-chat';
+      fullPath: '/api/parametric-chat';
+      preLoaderRoute: typeof ApiParametricChatRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/models': {
-      id: '/api/models'
-      path: '/api/models'
-      fullPath: '/api/models'
-      preLoaderRoute: typeof ApiModelsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/models';
+      path: '/api/models';
+      fullPath: '/api/models';
+      preLoaderRoute: typeof ApiModelsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/messages': {
-      id: '/api/messages'
-      path: '/api/messages'
-      fullPath: '/api/messages'
-      preLoaderRoute: typeof ApiMessagesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/messages';
+      path: '/api/messages';
+      fullPath: '/api/messages';
+      preLoaderRoute: typeof ApiMessagesRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/mesh': {
-      id: '/api/mesh'
-      path: '/api/mesh'
-      fullPath: '/api/mesh'
-      preLoaderRoute: typeof ApiMeshRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/mesh';
+      path: '/api/mesh';
+      fullPath: '/api/mesh';
+      preLoaderRoute: typeof ApiMeshRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/fal-webhook': {
-      id: '/api/fal-webhook'
-      path: '/api/fal-webhook'
-      fullPath: '/api/fal-webhook'
-      preLoaderRoute: typeof ApiFalWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/fal-webhook';
+      path: '/api/fal-webhook';
+      fullPath: '/api/fal-webhook';
+      preLoaderRoute: typeof ApiFalWebhookRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/delete-user': {
-      id: '/api/delete-user'
-      path: '/api/delete-user'
-      fullPath: '/api/delete-user'
-      preLoaderRoute: typeof ApiDeleteUserRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/delete-user';
+      path: '/api/delete-user';
+      fullPath: '/api/delete-user';
+      preLoaderRoute: typeof ApiDeleteUserRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/creative-chat': {
-      id: '/api/creative-chat'
-      path: '/api/creative-chat'
-      fullPath: '/api/creative-chat'
-      preLoaderRoute: typeof ApiCreativeChatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/creative-chat';
+      path: '/api/creative-chat';
+      fullPath: '/api/creative-chat';
+      preLoaderRoute: typeof ApiCreativeChatRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/conversations': {
-      id: '/api/conversations'
-      path: '/api/conversations'
-      fullPath: '/api/conversations'
-      preLoaderRoute: typeof ApiConversationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/conversations';
+      path: '/api/conversations';
+      fullPath: '/api/conversations';
+      preLoaderRoute: typeof ApiConversationsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/billing-status': {
-      id: '/api/billing-status'
-      path: '/api/billing-status'
-      fullPath: '/api/billing-status'
-      preLoaderRoute: typeof ApiBillingStatusRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/billing-status';
+      path: '/api/billing-status';
+      fullPath: '/api/billing-status';
+      preLoaderRoute: typeof ApiBillingStatusRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/billing-products': {
-      id: '/api/billing-products'
-      path: '/api/billing-products'
-      fullPath: '/api/billing-products'
-      preLoaderRoute: typeof ApiBillingProductsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/billing-products';
+      path: '/api/billing-products';
+      fullPath: '/api/billing-products';
+      preLoaderRoute: typeof ApiBillingProductsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/billing-checkout': {
-      id: '/api/billing-checkout'
-      path: '/api/billing-checkout'
-      fullPath: '/api/billing-checkout'
-      preLoaderRoute: typeof ApiBillingCheckoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/billing-checkout';
+      path: '/api/billing-checkout';
+      fullPath: '/api/billing-checkout';
+      preLoaderRoute: typeof ApiBillingCheckoutRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/_layout/subscription': {
-      id: '/_layout/subscription'
-      path: '/subscription'
-      fullPath: '/subscription'
-      preLoaderRoute: typeof LayoutSubscriptionRouteImport
-      parentRoute: typeof LayoutRoute
-    }
+      id: '/_layout/subscription';
+      path: '/subscription';
+      fullPath: '/subscription';
+      preLoaderRoute: typeof LayoutSubscriptionRouteImport;
+      parentRoute: typeof LayoutRoute;
+    };
     '/_layout/_auth': {
-      id: '/_layout/_auth'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof LayoutAuthRouteImport
-      parentRoute: typeof LayoutRoute
-    }
+      id: '/_layout/_auth';
+      path: '';
+      fullPath: '/';
+      preLoaderRoute: typeof LayoutAuthRouteImport;
+      parentRoute: typeof LayoutRoute;
+    };
     '/_layout/$': {
-      id: '/_layout/$'
-      path: '/$'
-      fullPath: '/$'
-      preLoaderRoute: typeof LayoutSplatRouteImport
-      parentRoute: typeof LayoutRoute
-    }
+      id: '/_layout/$';
+      path: '/$';
+      fullPath: '/$';
+      preLoaderRoute: typeof LayoutSplatRouteImport;
+      parentRoute: typeof LayoutRoute;
+    };
     '/api/storage/$': {
-      id: '/api/storage/$'
-      path: '/api/storage/$'
-      fullPath: '/api/storage/$'
-      preLoaderRoute: typeof ApiStorageSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/storage/$';
+      path: '/api/storage/$';
+      fullPath: '/api/storage/$';
+      preLoaderRoute: typeof ApiStorageSplatRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/jackson-pollock/$': {
-      id: '/api/jackson-pollock/$'
-      path: '/api/jackson-pollock/$'
-      fullPath: '/api/jackson-pollock/$'
-      preLoaderRoute: typeof ApiJacksonPollockSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/jackson-pollock/$';
+      path: '/api/jackson-pollock/$';
+      fullPath: '/api/jackson-pollock/$';
+      preLoaderRoute: typeof ApiJacksonPollockSplatRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/conversations/$id': {
-      id: '/api/conversations/$id'
-      path: '/$id'
-      fullPath: '/api/conversations/$id'
-      preLoaderRoute: typeof ApiConversationsIdRouteImport
-      parentRoute: typeof ApiConversationsRoute
-    }
+      id: '/api/conversations/$id';
+      path: '/$id';
+      fullPath: '/api/conversations/$id';
+      preLoaderRoute: typeof ApiConversationsIdRouteImport;
+      parentRoute: typeof ApiConversationsRoute;
+    };
     '/api/auth/me': {
-      id: '/api/auth/me'
-      path: '/api/auth/me'
-      fullPath: '/api/auth/me'
-      preLoaderRoute: typeof ApiAuthMeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/auth/me';
+      path: '/api/auth/me';
+      fullPath: '/api/auth/me';
+      preLoaderRoute: typeof ApiAuthMeRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/auth/logout': {
-      id: '/api/auth/logout'
-      path: '/api/auth/logout'
-      fullPath: '/api/auth/logout'
-      preLoaderRoute: typeof ApiAuthLogoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/auth/logout';
+      path: '/api/auth/logout';
+      fullPath: '/api/auth/logout';
+      preLoaderRoute: typeof ApiAuthLogoutRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/auth/login': {
-      id: '/api/auth/login'
-      path: '/api/auth/login'
-      fullPath: '/api/auth/login'
-      preLoaderRoute: typeof ApiAuthLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/auth/login';
+      path: '/api/auth/login';
+      fullPath: '/api/auth/login';
+      preLoaderRoute: typeof ApiAuthLoginRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/auth/callback': {
-      id: '/api/auth/callback'
-      path: '/api/auth/callback'
-      fullPath: '/api/auth/callback'
-      preLoaderRoute: typeof ApiAuthCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/auth/callback';
+      path: '/api/auth/callback';
+      fullPath: '/api/auth/callback';
+      preLoaderRoute: typeof ApiAuthCallbackRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/_layout/share/$id': {
-      id: '/_layout/share/$id'
-      path: '/share/$id'
-      fullPath: '/share/$id'
-      preLoaderRoute: typeof LayoutShareIdRouteImport
-      parentRoute: typeof LayoutRoute
-    }
+      id: '/_layout/share/$id';
+      path: '/share/$id';
+      fullPath: '/share/$id';
+      preLoaderRoute: typeof LayoutShareIdRouteImport;
+      parentRoute: typeof LayoutRoute;
+    };
     '/_layout/_auth/settings': {
-      id: '/_layout/_auth/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof LayoutAuthSettingsRouteImport
-      parentRoute: typeof LayoutAuthRoute
-    }
+      id: '/_layout/_auth/settings';
+      path: '/settings';
+      fullPath: '/settings';
+      preLoaderRoute: typeof LayoutAuthSettingsRouteImport;
+      parentRoute: typeof LayoutAuthRoute;
+    };
     '/_layout/_auth/history': {
-      id: '/_layout/_auth/history'
-      path: '/history'
-      fullPath: '/history'
-      preLoaderRoute: typeof LayoutAuthHistoryRouteImport
-      parentRoute: typeof LayoutAuthRoute
-    }
+      id: '/_layout/_auth/history';
+      path: '/history';
+      fullPath: '/history';
+      preLoaderRoute: typeof LayoutAuthHistoryRouteImport;
+      parentRoute: typeof LayoutAuthRoute;
+    };
     '/api/internal/account/delete': {
-      id: '/api/internal/account/delete'
-      path: '/api/internal/account/delete'
-      fullPath: '/api/internal/account/delete'
-      preLoaderRoute: typeof ApiInternalAccountDeleteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/internal/account/delete';
+      path: '/api/internal/account/delete';
+      fullPath: '/api/internal/account/delete';
+      preLoaderRoute: typeof ApiInternalAccountDeleteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/_layout/_auth/editor/$id': {
-      id: '/_layout/_auth/editor/$id'
-      path: '/editor/$id'
-      fullPath: '/editor/$id'
-      preLoaderRoute: typeof LayoutAuthEditorIdRouteImport
-      parentRoute: typeof LayoutAuthRoute
-    }
+      id: '/_layout/_auth/editor/$id';
+      path: '/editor/$id';
+      fullPath: '/editor/$id';
+      preLoaderRoute: typeof LayoutAuthEditorIdRouteImport;
+      parentRoute: typeof LayoutAuthRoute;
+    };
   }
 }
 
 interface LayoutAuthRouteChildren {
-  LayoutAuthHistoryRoute: typeof LayoutAuthHistoryRoute
-  LayoutAuthSettingsRoute: typeof LayoutAuthSettingsRoute
-  LayoutAuthEditorIdRoute: typeof LayoutAuthEditorIdRoute
+  LayoutAuthHistoryRoute: typeof LayoutAuthHistoryRoute;
+  LayoutAuthSettingsRoute: typeof LayoutAuthSettingsRoute;
+  LayoutAuthEditorIdRoute: typeof LayoutAuthEditorIdRoute;
 }
 
 const LayoutAuthRouteChildren: LayoutAuthRouteChildren = {
   LayoutAuthHistoryRoute: LayoutAuthHistoryRoute,
   LayoutAuthSettingsRoute: LayoutAuthSettingsRoute,
   LayoutAuthEditorIdRoute: LayoutAuthEditorIdRoute,
-}
+};
 
 const LayoutAuthRouteWithChildren = LayoutAuthRoute._addFileChildren(
   LayoutAuthRouteChildren,
-)
+);
 
 interface LayoutRouteChildren {
-  LayoutSplatRoute: typeof LayoutSplatRoute
-  LayoutAuthRoute: typeof LayoutAuthRouteWithChildren
-  LayoutSubscriptionRoute: typeof LayoutSubscriptionRoute
-  LayoutIndexRoute: typeof LayoutIndexRoute
-  LayoutShareIdRoute: typeof LayoutShareIdRoute
+  LayoutSplatRoute: typeof LayoutSplatRoute;
+  LayoutAuthRoute: typeof LayoutAuthRouteWithChildren;
+  LayoutSubscriptionRoute: typeof LayoutSubscriptionRoute;
+  LayoutIndexRoute: typeof LayoutIndexRoute;
+  LayoutShareIdRoute: typeof LayoutShareIdRoute;
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
@@ -827,21 +847,21 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutSubscriptionRoute: LayoutSubscriptionRoute,
   LayoutIndexRoute: LayoutIndexRoute,
   LayoutShareIdRoute: LayoutShareIdRoute,
-}
+};
 
 const LayoutRouteWithChildren =
-  LayoutRoute._addFileChildren(LayoutRouteChildren)
+  LayoutRoute._addFileChildren(LayoutRouteChildren);
 
 interface ApiConversationsRouteChildren {
-  ApiConversationsIdRoute: typeof ApiConversationsIdRoute
+  ApiConversationsIdRoute: typeof ApiConversationsIdRoute;
 }
 
 const ApiConversationsRouteChildren: ApiConversationsRouteChildren = {
   ApiConversationsIdRoute: ApiConversationsIdRoute,
-}
+};
 
 const ApiConversationsRouteWithChildren =
-  ApiConversationsRoute._addFileChildren(ApiConversationsRouteChildren)
+  ApiConversationsRoute._addFileChildren(ApiConversationsRouteChildren);
 
 const rootRouteChildren: RootRouteChildren = {
   LayoutRoute: LayoutRouteWithChildren,
@@ -865,6 +885,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiModelsRoute: ApiModelsRoute,
   ApiParametricChatRoute: ApiParametricChatRoute,
   ApiPromptGeneratorRoute: ApiPromptGeneratorRoute,
+  ApiSystemSettingsRoute: ApiSystemSettingsRoute,
   ApiTitleGeneratorRoute: ApiTitleGeneratorRoute,
   AssetsSplatRoute: AssetsSplatRoute,
   ApiAuthCallbackRoute: ApiAuthCallbackRoute,
@@ -874,16 +895,16 @@ const rootRouteChildren: RootRouteChildren = {
   ApiJacksonPollockSplatRoute: ApiJacksonPollockSplatRoute,
   ApiStorageSplatRoute: ApiStorageSplatRoute,
   ApiInternalAccountDeleteRoute: ApiInternalAccountDeleteRoute,
-}
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();
 
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { getRouter } from './router.tsx';
+import type { createStart } from '@tanstack/react-start';
 declare module '@tanstack/react-start' {
   interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
+    ssr: true;
+    router: Awaited<ReturnType<typeof getRouter>>;
   }
 }

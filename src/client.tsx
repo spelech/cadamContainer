@@ -1,3 +1,23 @@
+import { Buffer } from 'buffer';
+
+declare global {
+  interface Window {
+    Buffer: typeof Buffer;
+    global: typeof globalThis;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.Buffer = Buffer;
+  window.global = window;
+}
+if (typeof globalThis !== 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).Buffer = Buffer;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).global = globalThis;
+}
+
 import * as Sentry from '@sentry/react';
 import { StartClient } from '@tanstack/react-start/client';
 import { StrictMode, startTransition } from 'react';
