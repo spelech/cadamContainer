@@ -23,6 +23,7 @@ import {
   parametricModelSupportsVision,
 } from '@/lib/utils';
 import { useAvailableModels } from '@/hooks/useAvailableModels';
+import { resolveModelWithFallback } from '@/lib/modelResolution';
 import { CreativeModel, MeshFileType, Model } from '@shared/types';
 import type { AppUIMessage } from '@shared/chatAi';
 import { imageFilePartUrl } from '@shared/imageRefs';
@@ -669,7 +670,7 @@ function TextAreaChat({
   }, [type, models]);
 
   const selectedModelConfig = useMemo(
-    () => memoizedModels.find((m) => m.id === model),
+    () => resolveModelWithFallback(memoizedModels, model),
     [memoizedModels, model],
   );
 
