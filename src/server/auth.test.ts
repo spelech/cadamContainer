@@ -25,7 +25,8 @@ function resolveDatabaseUrl(): string {
 process.env.DATABASE_URL = resolveDatabaseUrl();
 process.env.POCKETID_CLIENT_ID = 'test-client-id';
 process.env.POCKETID_CLIENT_SECRET = 'test-client-secret';
-process.env.CADAM_SESSION_SECRET = 'test-cadam-session-secret-key-for-hmac-sha256';
+process.env.CADAM_SESSION_SECRET =
+  'test-cadam-session-secret-key-for-hmac-sha256';
 
 const {
   SESSION_COOKIE_NAME,
@@ -56,8 +57,13 @@ const { Route: MeRoute } = await import('../routes/api/auth/me.ts');
 const { Route: LogoutRoute } = await import('../routes/api/auth/logout.ts');
 
 type RouteHandler = (opts: { request: Request }) => Promise<Response>;
-function getHandler(route: { options: { server?: { handlers?: unknown } } }, method: string): RouteHandler {
-  const handlers = route.options.server?.handlers as Record<string, RouteHandler> | undefined;
+function getHandler(
+  route: { options: { server?: { handlers?: unknown } } },
+  method: string,
+): RouteHandler {
+  const handlers = route.options.server?.handlers as
+    | Record<string, RouteHandler>
+    | undefined;
   return handlers?.[method] as RouteHandler;
 }
 
@@ -72,9 +78,14 @@ describe('Auth Module (src/server/auth.ts)', () => {
 
       assert.ok(verifier.length >= 43, 'verifier should be at least 43 chars');
       assert.ok(state.length >= 20, 'state should be sufficiently long');
-      assert.ok(challenge.length >= 40, 'challenge should be valid sha256 base64url');
+      assert.ok(
+        challenge.length >= 40,
+        'challenge should be valid sha256 base64url',
+      );
 
-      const expectedChallenge = createHash('sha256').update(verifier).digest('base64url');
+      const expectedChallenge = createHash('sha256')
+        .update(verifier)
+        .digest('base64url');
       assert.strictEqual(challenge, expectedChallenge);
     });
 
@@ -120,7 +131,9 @@ describe('Auth Module (src/server/auth.ts)', () => {
     });
 
     it('creates and clears session and oauth cookies', () => {
-      const sessionCookie = createSessionCookie('jwt.token.val', { secure: false });
+      const sessionCookie = createSessionCookie('jwt.token.val', {
+        secure: false,
+      });
       assert.ok(sessionCookie.includes(`${SESSION_COOKIE_NAME}=jwt.token.val`));
       assert.ok(sessionCookie.includes('HttpOnly'));
       assert.ok(sessionCookie.includes('SameSite=Lax'));
@@ -247,17 +260,26 @@ describe('Auth Module (src/server/auth.ts)', () => {
 
       const parsed = new URL(urlStr);
       assert.strictEqual(parsed.searchParams.get('response_type'), 'code');
-      assert.strictEqual(parsed.searchParams.get('client_id'), 'test-client-id');
+      assert.strictEqual(
+        parsed.searchParams.get('client_id'),
+        'test-client-id',
+      );
       assert.strictEqual(
         parsed.searchParams.get('redirect_uri'),
         'https://cadam.wileyriley.com/cadam/api/auth/callback',
       );
-      assert.strictEqual(parsed.searchParams.get('state'), 'sample-state-value');
+      assert.strictEqual(
+        parsed.searchParams.get('state'),
+        'sample-state-value',
+      );
       assert.strictEqual(
         parsed.searchParams.get('code_challenge'),
         'sample-code-challenge',
       );
-      assert.strictEqual(parsed.searchParams.get('code_challenge_method'), 'S256');
+      assert.strictEqual(
+        parsed.searchParams.get('code_challenge_method'),
+        'S256',
+      );
     });
 
     it('resolves callback URI respecting x-forwarded headers and basepath', () => {
@@ -292,7 +314,10 @@ describe('Auth Module (src/server/auth.ts)', () => {
       assert.strictEqual(user.id, sub);
       assert.strictEqual(user.email, email);
       assert.strictEqual(user.display_name, 'PocketID Explorer');
-      assert.strictEqual(user.avatar_url, 'https://pocketid.example.com/avatar.jpg');
+      assert.strictEqual(
+        user.avatar_url,
+        'https://pocketid.example.com/avatar.jpg',
+      );
 
       // Verify stored in DB
       const dbRow = await query('SELECT * FROM profiles WHERE id = $1', [sub]);
@@ -404,7 +429,9 @@ describe('Auth Module (src/server/auth.ts)', () => {
         const handler = getHandler(CallbackRoute, 'GET');
         const res = await handler({ request: req });
         assert.strictEqual(res.status, 302);
-        assert.ok(res.headers.get('Location')?.includes('auth_error=access_denied'));
+        assert.ok(
+          res.headers.get('Location')?.includes('auth_error=access_denied'),
+        );
       });
     });
 
@@ -443,6 +470,28 @@ describe('Auth Module (src/server/auth.ts)', () => {
         assert.strictEqual(body.user.email, 'active@cadam.io');
         assert.strictEqual(body.user.display_name, 'Active User');
         assert.strictEqual(body.user.user_metadata.full_name, 'Active User');
+      });
+
+      it('authenticates and issues session cookie from reverse proxy headers', async () => {
+        const req = new Request('http://localhost:3000/cadam/api/auth/me', {
+          headers: {
+            'Remote-Email': 'proxy-user@example.com',
+            'Remote-Name': 'Proxy User',
+            'Remote-User': 'proxyuser',
+          },
+        });
+
+        const handler = getHandler(MeRoute, 'GET');
+        const res = await handler({ request: req });
+        assert.strictEqual(res.status, 200);
+
+        const body = await res.json();
+        assert.ok(body.user);
+        assert.strictEqual(body.user.email, 'proxy-user@example.com');
+        assert.strictEqual(body.user.display_name, 'Proxy User');
+
+        const setCookie = res.headers.get('Set-Cookie');
+        assert.ok(setCookie?.includes(`${SESSION_COOKIE_NAME}=`));
       });
     });
 
