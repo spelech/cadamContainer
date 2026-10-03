@@ -5,6 +5,7 @@ import type {
   CadReferenceBounds,
   CadTessellationResult,
 } from '@/types/cadReference';
+import { extractCadFeatures } from './cadFeatureExtractor';
 
 /**
  * Validates and extracts file extension to supported CAD file types.
@@ -421,22 +422,19 @@ export async function parseCadBuffer(
     tessellatedStlBytes = exportBinaryStl(positions, normals);
   }
 
-  const bounds = computeCadBounds(positions);
-  const triangleCount = Math.floor(positions.length / 9);
+  const metadata = extractCadFeatures(
+    positions,
+    normals,
+    fileName,
+    buffer.byteLength,
+    fileType,
+    tessellatedStlBytes,
+  );
 
   return {
     positions,
     normals,
-    metadata: {
-      fileName,
-      fileSize: buffer.byteLength,
-      fileType,
-      bounds,
-      holes: [], // Populated by cadFeatureExtractor
-      planes: [], // Populated by cadFeatureExtractor
-      triangleCount,
-      tessellatedStlBytes,
-    },
+    metadata,
   };
 }
 
