@@ -184,7 +184,7 @@ interface OcctInstance {
 /**
  * Extracts and unrolls OCCT meshes into unified contiguous Float32Arrays of positions and normals.
  */
-function extractMeshesToBuffers(meshes: OcctMesh[]): {
+export function extractMeshesToBuffers(meshes: OcctMesh[]): {
   positions: Float32Array;
   normals: Float32Array;
 } {
@@ -277,8 +277,8 @@ function extractMeshesToBuffers(meshes: OcctMesh[]): {
         }
       }
     } else {
-      // Non-indexed
-      const count = posArr.length;
+      // Non-indexed: clamp to full triangles (multiples of 9 floats)
+      const count = Math.floor(posArr.length / 9) * 9;
       const hasNormals = normArr && normArr.length >= count;
       for (let i = 0; i < count; i++) {
         positions[pOffset++] = posArr[i];
@@ -506,6 +506,14 @@ function getCadWorker(): Worker {
     const err = new Error(errorMsg);
     pendingRequests.forEach((p) => p.reject(err));
     pendingRequests.clear();
+    if (workerInstance) {
+      try {
+        workerInstance.terminate();
+      } catch {
+        // ignore
+      }
+      workerInstance = null;
+    }
   });
 
   return workerInstance;

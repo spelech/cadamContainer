@@ -6,6 +6,7 @@ import {
   importCadReferenceFile,
   parseCadBuffer,
   setCadWorkerFactory,
+  extractMeshesToBuffers,
 } from './cadWorkerClient';
 import type {
   CadImportWorkerRequest,
@@ -141,6 +142,33 @@ endsolid test_triangle`;
       assert.equal(result.normals.length, result.metadata.triangleCount * 9);
       assert.ok(result.metadata.tessellatedStlBytes instanceof Uint8Array);
     });
+
+    it('clamps unaligned trailing coordinates in non-indexed meshes without buffer overrun', () => {
+      // 11 floats: 1 full triangle (9 floats) + 2 extra leftover numbers
+      const unalignedMesh = {
+        name: 'unaligned',
+        attributes: {
+          position: {
+            array: [0, 0, 0, 1, 0, 0, 0, 1, 0, 999, 999],
+          },
+        },
+      };
+
+      const { positions, normals } = extractMeshesToBuffers([unalignedMesh]);
+      assert.equal(
+        positions.length,
+        9,
+        'Should clamp to exactly 9 coordinates (1 triangle)',
+      );
+      assert.equal(
+        normals.length,
+        9,
+        'Should generate exactly 9 normal components',
+      );
+      assert.equal(positions[0], 0);
+      assert.equal(positions[3], 1);
+      assert.equal(positions[7], 1);
+    });
   });
 
   describe('importCadReferenceFile integration with File object', () => {
@@ -275,6 +303,116 @@ endsolid unit_box`;
           message: 'Corrupted CAD entity table',
         },
       );
+
+      setCadWorkerFactory(null);
+    });
+
+    it('terminates worker and respawns cleanly after worker error event', async () => {
+      let workerInstanceCount = 0;
+      let terminatedCount = 0;
+      let activeErrorListeners: ErrorListener[] = [];
+      let activeMessageListeners: MessageListener[] = [];
+
+      class CrashingWorker {
+        id: number;
+        constructor() {
+          workerInstanceCount++;
+          this.id = workerInstanceCount;
+        }
+        addEventListener(event: string, listener: unknown) {
+          if (event === 'error') {
+            activeErrorListeners.push(listener as ErrorListener);
+          }
+          if (event === 'message') {
+            activeMessageListeners.push(listener as MessageListener);
+          }
+        }
+        removeEventListener() {}
+        postMessage(data: CadImportWorkerRequest) {
+          if (this.id === 1) {
+            // First worker crashes with an error event
+            setTimeout(() => {
+              activeErrorListeners.forEach((fn) =>
+                fn({ message: 'Fatal worker crash' }),
+              );
+            }, 5);
+          } else {
+            // Respawned worker succeeds
+            const fakeResult: CadTessellationResult = {
+              positions: new Float32Array(9),
+              normals: new Float32Array(9),
+              metadata: {
+                fileName: data.fileName,
+                fileSize: 10,
+                fileType: 'step',
+                bounds: {
+                  min: [0, 0, 0],
+                  max: [1, 1, 1],
+                  dimensions: [1, 1, 1],
+                  center: [0.5, 0.5, 0.5],
+                },
+                holes: [],
+                planes: [],
+                triangleCount: 1,
+              },
+            };
+            setTimeout(() => {
+              activeMessageListeners.forEach((fn) =>
+                fn({
+                  data: { id: data.id, success: true, result: fakeResult },
+                }),
+              );
+            }, 5);
+          }
+        }
+        terminate() {
+          terminatedCount++;
+        }
+      }
+
+      setCadWorkerFactory(() => {
+        activeErrorListeners = [];
+        activeMessageListeners = [];
+        return new CrashingWorker() as unknown as Worker;
+      });
+
+      const fakeFile1 = {
+        name: 'part1.step',
+        size: 10,
+        arrayBuffer: async () => new ArrayBuffer(10),
+      } as unknown as File;
+
+      // First call should fail due to crash
+      await assert.rejects(
+        async () => {
+          await importCadReferenceFile(fakeFile1);
+        },
+        {
+          name: 'Error',
+          message: 'Fatal worker crash',
+        },
+      );
+
+      assert.equal(
+        terminatedCount,
+        1,
+        'First broken worker should be terminated',
+      );
+
+      // Second call should create a new worker and succeed
+      const fakeFile2 = {
+        name: 'part2.step',
+        size: 10,
+        arrayBuffer: async () => new ArrayBuffer(10),
+      } as unknown as File;
+
+      const result = await importCadReferenceFile(fakeFile2);
+      assert.equal(
+        workerInstanceCount,
+        2,
+        'New worker should have been spawned',
+      );
+      assert.equal(result.metadata.fileName, 'part2.step');
 
       setCadWorkerFactory(null);
     });
