@@ -4,7 +4,7 @@
 **Date:** 2026-10-02  
 **Branch:** `feat/cad-reference-models-step-iges-stl-grabcad`  
 **Target Release:** `v0.9.0`  
-**Status:** In Review
+**Status:** Approved
 
 ---
 

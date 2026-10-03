@@ -16,17 +16,7 @@ import { createDXFProjectionCode } from '@/utils/dxfUtils';
 import { DxfExporter } from '@/utils/downloadUtils';
 import { useOptionalCadReference } from '@/context/CadReferenceContext';
 import type { CollisionReport } from '@/lib/cadCollisionDetector';
-
-// Extract import() filenames from OpenSCAD code
-function extractImportFilenames(code: string): string[] {
-  const importRegex = /import\s*\(\s*"([^"]+)"\s*\)/g;
-  const filenames: string[] = [];
-  let match;
-  while ((match = importRegex.exec(code)) !== null) {
-    filenames.push(match[1]);
-  }
-  return filenames;
-}
+import { extractImportFilenames } from '@/lib/cadPromptBuilder';
 
 // Brand-fallback `color` arrives as a CSS hex string (e.g. "#00A6FF") since
 // it's also handed to react-three-fiber's <meshStandardMaterial color>. The
@@ -110,6 +100,10 @@ export function OpenSCADPreview({
 
         if (needsWrite && meshContent) {
           await writeFile(filename, meshContent);
+          const basename = filename.replace(/^.*[\\/]/, '');
+          if (basename !== filename) {
+            await writeFile(basename, meshContent);
+          }
           writtenFilesRef.current.set(filename, meshContent);
         }
       }

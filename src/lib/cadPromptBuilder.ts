@@ -64,6 +64,24 @@ export function getAssemblyStlFileName(fileName: string): string {
 }
 
 /**
+ * Extracts import() filenames from OpenSCAD code.
+ * Supports single and double quotes, file= parameter, background modifier %import(),
+ * additional arguments (e.g. convexity), and deduplicates results.
+ */
+export function extractImportFilenames(code: string): string[] {
+  const importRegex = /import\s*\(\s*(?:file\s*=\s*)?["']([^"']+)["']/gi;
+  const filenames: string[] = [];
+  let match;
+  while ((match = importRegex.exec(code)) !== null) {
+    const filename = match[1];
+    if (!filenames.includes(filename)) {
+      filenames.push(filename);
+    }
+  }
+  return filenames;
+}
+
+/**
  * Formats a VibeCAD-inspired structured engineering prompt injection for the LLM.
  *
  * Provides exact dimensional bounds, detected mounting holes and mating planes,

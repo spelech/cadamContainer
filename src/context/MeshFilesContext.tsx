@@ -1,2 +1,2 @@
 /* eslint-disable react-refresh/only-export-components */
-export * from '@/context/CadReferenceContext';
+export * from '@/contexts/MeshFilesContext';
