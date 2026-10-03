@@ -525,6 +525,24 @@ function TextAreaChat({
     }
   }, [tessellatedStlBytes, cadFileName, meshFiles]);
 
+  // Listen for interference prompt auto-fill from CadReferenceHud
+  useEffect(() => {
+    const handleFixInterferenceEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ prompt?: string }>;
+      if (customEvent.detail?.prompt) {
+        setInput(customEvent.detail.prompt);
+        textareaRef.current?.focus();
+      }
+    };
+    window.addEventListener('cad-fix-interference', handleFixInterferenceEvent);
+    return () => {
+      window.removeEventListener(
+        'cad-fix-interference',
+        handleFixInterferenceEvent,
+      );
+    };
+  }, []);
+
   const creativeModel =
     type === 'creative' && isCreativeModel(model) ? model : null;
   const showPolygonControls = creativeModel
@@ -1546,7 +1564,14 @@ function TextAreaChat({
                     </label>
                     <button
                       type="button"
-                      onClick={() => clearReference?.()}
+                      onClick={() => {
+                        if (cadFileName) {
+                          meshFiles.removeMeshFile(
+                            getAssemblyStlFileName(cadFileName),
+                          );
+                        }
+                        clearReference?.();
+                      }}
                       aria-label="Remove reference model"
                       className="ml-1 rounded p-0.5 text-adam-text-secondary transition-colors hover:bg-adam-neutral-700 hover:text-adam-text-primary"
                     >

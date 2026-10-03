@@ -225,6 +225,51 @@ describe('cadFeatureExtractor', () => {
         Math.abs(topPlane.offset - 10) < 0.1,
         `Expected offset ~10 for Z=10 plane, got ${topPlane.offset}`,
       );
+
+      // Verify side faces detection
+      const frontPlane = planes.find(
+        (p) =>
+          Math.abs(p.normal[0]) < 0.05 &&
+          Math.abs(p.normal[1] - -1) < 0.05 &&
+          Math.abs(p.normal[2]) < 0.05,
+      );
+      assert.ok(
+        frontPlane,
+        'Front plane with normal [0, -1, 0] should be detected',
+      );
+
+      const backPlane = planes.find(
+        (p) =>
+          Math.abs(p.normal[0]) < 0.05 &&
+          Math.abs(p.normal[1] - 1) < 0.05 &&
+          Math.abs(p.normal[2]) < 0.05,
+      );
+      assert.ok(
+        backPlane,
+        'Back plane with normal [0, 1, 0] should be detected',
+      );
+
+      const leftPlane = planes.find(
+        (p) =>
+          Math.abs(p.normal[0] - -1) < 0.05 &&
+          Math.abs(p.normal[1]) < 0.05 &&
+          Math.abs(p.normal[2]) < 0.05,
+      );
+      assert.ok(
+        leftPlane,
+        'Left plane with normal [-1, 0, 0] should be detected',
+      );
+
+      const rightPlane = planes.find(
+        (p) =>
+          Math.abs(p.normal[0] - 1) < 0.05 &&
+          Math.abs(p.normal[1]) < 0.05 &&
+          Math.abs(p.normal[2]) < 0.05,
+      );
+      assert.ok(
+        rightPlane,
+        'Right plane with normal [1, 0, 0] should be detected',
+      );
     });
   });
 
@@ -277,6 +322,99 @@ describe('cadFeatureExtractor', () => {
         hole.depth && Math.abs(hole.depth - 10) < 0.2,
         `Expected depth ~10mm, got ${hole.depth}`,
       );
+    });
+
+    it('detects blind hole with isThroughHole: false for a single circular boundary loop', () => {
+      // Create a conical cavity with a single circular rim of diameter 6 (radius 3) at Z = 0
+      const segments = 16;
+      const radius = 3;
+      const pos: number[] = [];
+
+      for (let i = 0; i < segments; i++) {
+        const theta0 = (2 * Math.PI * i) / segments;
+        const theta1 = (2 * Math.PI * (i + 1)) / segments;
+        const x0 = radius * Math.cos(theta0);
+        const y0 = radius * Math.sin(theta0);
+        const x1 = radius * Math.cos(theta1);
+        const y1 = radius * Math.sin(theta1);
+
+        // Triangle from rim to cone apex at [0, 0, -5]
+        pos.push(x0, y0, 0, x1, y1, 0, 0, 0, -5);
+      }
+
+      const blindHoles = detectCylindricalHoles(new Float32Array(pos));
+      assert.equal(blindHoles.length, 1, 'Expected 1 blind hole');
+      assert.equal(blindHoles[0].isThroughHole, false);
+      assert.ok(
+        Math.abs(blindHoles[0].diameter - 6.0) < 0.2,
+        `Expected diameter ~6.0, got ${blindHoles[0].diameter}`,
+      );
+      assert.ok(
+        Math.abs(blindHoles[0].center[0]) < 0.1 &&
+          Math.abs(blindHoles[0].center[1]) < 0.1 &&
+          Math.abs(blindHoles[0].center[2]) < 0.1,
+        'Blind hole center should be at rim [0, 0, 0]',
+      );
+    });
+
+    it('detects multi-hole arrays with multiple through-holes', () => {
+      const segments = 16;
+      const radius = 2.5; // diameter 5
+      const height = 10;
+      const pos: number[] = [];
+
+      function addCylinder(cx: number, cy: number) {
+        for (let i = 0; i < segments; i++) {
+          const theta0 = (2 * Math.PI * i) / segments;
+          const theta1 = (2 * Math.PI * (i + 1)) / segments;
+          const x0 = cx + radius * Math.cos(theta0);
+          const y0 = cy + radius * Math.sin(theta0);
+          const x1 = cx + radius * Math.cos(theta1);
+          const y1 = cy + radius * Math.sin(theta1);
+
+          // Wall quad as 2 triangles
+          pos.push(x0, y0, 0, x0, y0, height, x1, y1, 0);
+          pos.push(x1, y1, 0, x0, y0, height, x1, y1, height);
+        }
+      }
+
+      // Add two separated cylinders along X axis
+      addCylinder(-15, 0);
+      addCylinder(15, 0);
+
+      const holes = detectCylindricalHoles(new Float32Array(pos));
+      assert.equal(holes.length, 2, 'Expected 2 holes in array');
+      assert.equal(holes[0].isThroughHole, true);
+      assert.equal(holes[1].isThroughHole, true);
+
+      const centers = holes.map((h) => h.center[0]).sort((a, b) => a - b);
+      assert.ok(
+        Math.abs(centers[0] - -15) < 0.2,
+        `Expected hole 1 at X ~ -15, got ${centers[0]}`,
+      );
+      assert.ok(
+        Math.abs(centers[1] - 15) < 0.2,
+        `Expected hole 2 at X ~ 15, got ${centers[1]}`,
+      );
+    });
+
+    it('handles degenerate collinear and zero-area triangles gracefully', () => {
+      // 3 collinear points, 3 identical points, and another degenerate set
+      const degeneratePositions = new Float32Array([
+        0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 5, 10, 10,
+        10, 15, 15, 15,
+      ]);
+
+      const planes = detectMatingPlanes(degeneratePositions);
+      assert.deepEqual(planes, []);
+
+      const holes = detectCylindricalHoles(degeneratePositions);
+      assert.deepEqual(holes, []);
+
+      const bounds = computeBounds(degeneratePositions);
+      assert.deepEqual(bounds.min, [0, 0, 0]);
+      assert.deepEqual(bounds.max, [15, 15, 15]);
+      assert.deepEqual(bounds.dimensions, [15, 15, 15]);
     });
   });
 

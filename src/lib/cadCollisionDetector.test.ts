@@ -22,9 +22,29 @@ describe('cadCollisionDetector', () => {
       report.collidingTriangleCount > 0,
       `Expected collidingTriangleCount > 0, got ${report.collidingTriangleCount}`,
     );
+    assert.ok(report.collidingPositions !== undefined);
+    assert.equal(report.collidingPositions.length % 9, 0);
+
     assert.ok(report.collidingCenter !== undefined);
-    assert.ok(typeof report.approximatePenetrationVolume === 'number');
-    assert.ok(report.approximatePenetrationVolume > 0);
+    assert.ok(
+      Math.abs(report.collidingCenter[0] - 2.5) < 0.5,
+      `Expected center X ~ 2.5, got ${report.collidingCenter[0]}`,
+    );
+    assert.ok(
+      Math.abs(report.collidingCenter[1] - 0) < 0.5,
+      `Expected center Y ~ 0, got ${report.collidingCenter[1]}`,
+    );
+    assert.ok(
+      Math.abs(report.collidingCenter[2] - 0) < 0.5,
+      `Expected center Z ~ 0, got ${report.collidingCenter[2]}`,
+    );
+
+    assert.ok(
+      typeof report.approximatePenetrationVolume === 'number' &&
+        report.approximatePenetrationVolume >= 400 &&
+        report.approximatePenetrationVolume <= 600,
+      `Expected approximatePenetrationVolume between 400 and 600, got ${report.approximatePenetrationVolume}`,
+    );
   });
 
   it('returns no collision for non-overlapping box geometries', () => {

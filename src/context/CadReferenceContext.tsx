@@ -133,6 +133,31 @@ export const CadReferenceContext = createContext<CadReferenceState | undefined>(
   undefined,
 );
 
+export async function executeSetReferenceFile(
+  file: File,
+  dispatch: (action: CadReferenceAction) => void,
+): Promise<void> {
+  dispatch({ type: 'SET_LOADING' });
+  try {
+    const result = await importCadReferenceFile(file);
+    dispatch({
+      type: 'SET_MODEL',
+      payload: {
+        metadata: result.metadata,
+        positions: result.positions,
+        normals: result.normals,
+      },
+    });
+  } catch (err) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : 'Failed to import CAD reference file';
+    dispatch({ type: 'SET_ERROR', error: message });
+    throw err;
+  }
+}
+
 export function CadReferenceProvider({
   children,
   initialModel = null,
@@ -147,25 +172,7 @@ export function CadReferenceProvider({
   });
 
   const setReferenceFile = useCallback(async (file: File): Promise<void> => {
-    dispatch({ type: 'SET_LOADING' });
-    try {
-      const result = await importCadReferenceFile(file);
-      dispatch({
-        type: 'SET_MODEL',
-        payload: {
-          metadata: result.metadata,
-          positions: result.positions,
-          normals: result.normals,
-        },
-      });
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : 'Failed to import CAD reference file';
-      dispatch({ type: 'SET_ERROR', error: message });
-      throw err;
-    }
+    return executeSetReferenceFile(file, dispatch);
   }, []);
 
   const setIncludeInAssembly = useCallback((include: boolean) => {

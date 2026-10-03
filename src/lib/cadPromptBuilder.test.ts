@@ -1,6 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatCadReferencePrompt } from './cadPromptBuilder';
+import {
+  formatCadReferencePrompt,
+  extractImportFilenames,
+} from './cadPromptBuilder';
 import type { CadReferenceMetadata } from '../types/cadReference';
 
 describe('cadPromptBuilder', () => {
@@ -183,5 +186,46 @@ describe('cadPromptBuilder', () => {
 
     assert.match(prompt, /%import\("bracketbadname\.stl"\)/);
     assert.doesNotMatch(prompt, /["\\]bad/);
+  });
+
+  describe('extractImportFilenames', () => {
+    it('extracts double-quoted import filenames', () => {
+      const scad = 'import("base_plate.stl");';
+      const filenames = extractImportFilenames(scad);
+      assert.deepEqual(filenames, ['base_plate.stl']);
+    });
+
+    it('extracts single-quoted import filenames', () => {
+      const scad = "import('bracket.stl');";
+      const filenames = extractImportFilenames(scad);
+      assert.deepEqual(filenames, ['bracket.stl']);
+    });
+
+    it('extracts filenames from OpenSCAD background modifier %import(...)', () => {
+      const scad =
+        '%import("motor_mount.stl");\ntranslate([0, 0, 10]) cube([10, 10, 10]);';
+      const filenames = extractImportFilenames(scad);
+      assert.deepEqual(filenames, ['motor_mount.stl']);
+    });
+
+    it('extracts filenames when additional arguments or named arguments are passed', () => {
+      const scad = `
+        import("part1.stl", convexity = 5);
+        import(file = "part2.stl", convexity = 3);
+        import(file='part3.stl');
+      `;
+      const filenames = extractImportFilenames(scad);
+      assert.deepEqual(filenames, ['part1.stl', 'part2.stl', 'part3.stl']);
+    });
+
+    it('deduplicates multiple imports of the same file', () => {
+      const scad = `
+        import("screw.stl");
+        translate([10, 0, 0]) import("screw.stl");
+        translate([20, 0, 0]) import("screw.stl");
+      `;
+      const filenames = extractImportFilenames(scad);
+      assert.deepEqual(filenames, ['screw.stl']);
+    });
   });
 });

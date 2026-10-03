@@ -7,8 +7,10 @@ import {
   useCadReference,
   useOptionalCadReference,
   cadReferenceReducer,
+  executeSetReferenceFile,
   type CadReferenceModel,
   type CadReferenceInternalState,
+  type CadReferenceAction,
 } from './CadReferenceContext';
 import { formatCadReferencePrompt } from '@/lib/cadPromptBuilder';
 import type { CadReferenceMetadata } from '@/types/cadReference';
@@ -380,6 +382,104 @@ describe('CadReferenceContext', () => {
         includeInAssembly: state.referenceModel!.includeInAssembly,
       });
       assert.doesNotMatch(prompt, /%import/);
+    });
+  });
+
+  describe('setReferenceFile async lifecycle', () => {
+    it('executes setReferenceFile with a valid mock File, verifying loading state and populated model', async () => {
+      const actions: CadReferenceAction[] = [];
+      let currentState: CadReferenceInternalState = {
+        referenceModel: null,
+        isLoading: false,
+        error: null,
+      };
+
+      const dispatch = (action: CadReferenceAction) => {
+        actions.push(action);
+        currentState = cadReferenceReducer(currentState, action);
+      };
+
+      const asciiStl = `solid test_box
+facet normal 0 0 1
+  outer loop
+    vertex 0 0 0
+    vertex 10 0 0
+    vertex 10 10 0
+  endloop
+endfacet
+endsolid test_box`;
+      const blob = new Blob([asciiStl], { type: 'model/stl' });
+      const file = new File([blob], 'bracket.stl', { type: 'model/stl' });
+
+      assert.equal(currentState.isLoading, false);
+      assert.equal(currentState.referenceModel, null);
+
+      await executeSetReferenceFile(file, dispatch);
+
+      assert.equal(actions.length, 2);
+      assert.equal(actions[0].type, 'SET_LOADING');
+      assert.equal(actions[1].type, 'SET_MODEL');
+
+      assert.equal(currentState.isLoading, false);
+      assert.equal(currentState.error, null);
+      const loadedModel =
+        currentState.referenceModel as CadReferenceModel | null;
+      assert.notEqual(loadedModel, null);
+      assert.equal(loadedModel?.metadata.fileName, 'bracket.stl');
+      assert.equal(loadedModel?.displayMode, 'ghost');
+      assert.ok((loadedModel?.positions.length ?? 0) >= 9);
+    });
+
+    it('executes setReferenceFile with an unsupported file, verifying loading state and error state', async () => {
+      const actions: CadReferenceAction[] = [];
+      let currentState: CadReferenceInternalState = {
+        referenceModel: null,
+        isLoading: false,
+        error: null,
+      };
+
+      const dispatch = (action: CadReferenceAction) => {
+        actions.push(action);
+        currentState = cadReferenceReducer(currentState, action);
+      };
+
+      const file = new File(['plain text'], 'notes.txt', {
+        type: 'text/plain',
+      });
+
+      await assert.rejects(async () => {
+        await executeSetReferenceFile(file, dispatch);
+      }, /Unsupported CAD file format/);
+
+      assert.equal(actions.length, 2);
+      assert.equal(actions[0].type, 'SET_LOADING');
+      assert.equal(actions[1].type, 'SET_ERROR');
+
+      assert.equal(currentState.isLoading, false);
+      assert.match(currentState.error ?? '', /Unsupported CAD file format/);
+      assert.equal(currentState.referenceModel, null);
+    });
+
+    it('executes setReferenceFile through useCadReference within CadReferenceProvider', async () => {
+      let capturedContext: ReturnType<typeof useCadReference> | undefined;
+      function Consumer() {
+        capturedContext = useCadReference();
+        return null;
+      }
+
+      ReactDOMServer.renderToString(
+        React.createElement(
+          CadReferenceProvider,
+          null,
+          React.createElement(Consumer),
+        ),
+      );
+
+      assert.ok(capturedContext);
+      const invalidFile = new File(['bad'], 'bad.doc');
+      await assert.rejects(async () => {
+        await capturedContext!.setReferenceFile(invalidFile);
+      }, /Unsupported CAD file format/);
     });
   });
 });

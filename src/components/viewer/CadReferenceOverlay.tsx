@@ -67,6 +67,7 @@ export function CadReferenceOverlay({
   // Run BVH-based interference detection against OpenSCAD geometry if not provided by parent
   const internalCollisionReport = useMemo<CollisionReport>(() => {
     if (
+      propCollisionReport !== undefined ||
       !showCollisions ||
       !openScadGeometry ||
       !positions ||
@@ -76,7 +77,7 @@ export function CadReferenceOverlay({
     }
 
     return detectInterference(positions, openScadGeometry);
-  }, [positions, showCollisions, openScadGeometry]);
+  }, [propCollisionReport, positions, showCollisions, openScadGeometry]);
 
   const collisionReport = propCollisionReport ?? internalCollisionReport;
 
@@ -142,7 +143,7 @@ export function CadReferenceOverlay({
       )}
 
       {/* Collision highlight: emissive red facets */}
-      {showCollisions && collidingGeometry && (
+      {displayMode !== 'hidden' && showCollisions && collidingGeometry && (
         <mesh geometry={collidingGeometry}>
           <meshStandardMaterial
             color="#ef4444"
@@ -155,6 +156,7 @@ export function CadReferenceOverlay({
             depthWrite={false}
             polygonOffset={true}
             polygonOffsetFactor={-1}
+            polygonOffsetUnits={-1}
             side={THREE.DoubleSide}
           />
         </mesh>
@@ -196,6 +198,7 @@ export function CadReferenceHud({
 
   const internalCollisionReport = useMemo<CollisionReport>(() => {
     if (
+      propCollisionReport !== undefined ||
       !showCollisions ||
       !openScadGeometry ||
       !positions ||
@@ -205,7 +208,7 @@ export function CadReferenceHud({
     }
 
     return detectInterference(positions, openScadGeometry);
-  }, [positions, showCollisions, openScadGeometry]);
+  }, [propCollisionReport, positions, showCollisions, openScadGeometry]);
 
   const collisionReport = propCollisionReport ?? internalCollisionReport;
 

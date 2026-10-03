@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useRef, useCallback } from 'react';
 
 export interface MeshFilesContextType {
   // Store a mesh file by filename
@@ -71,6 +71,15 @@ export function MeshFilesProvider({ children }: { children: React.ReactNode }) {
     meshFilesRef.current.delete(filename);
     const basename = filename.replace(/^.*[\\/]/, '');
     meshFilesRef.current.delete(basename);
+
+    const lowerFilename = filename.toLowerCase();
+    const lowerBasename = basename.toLowerCase();
+    for (const key of Array.from(meshFilesRef.current.keys())) {
+      const lowerKey = key.toLowerCase();
+      if (lowerKey === lowerFilename || lowerKey === lowerBasename) {
+        meshFilesRef.current.delete(key);
+      }
+    }
   }, []);
 
   const getAllMeshFiles = useCallback((): Map<string, Blob> => {
@@ -103,4 +112,8 @@ export function useMeshFiles() {
     throw new Error('useMeshFiles must be used within a MeshFilesProvider');
   }
   return context;
+}
+
+export function useOptionalMeshFiles() {
+  return useContext(MeshFilesContext);
 }

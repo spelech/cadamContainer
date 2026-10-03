@@ -95,6 +95,13 @@ export function detectInterference(
       };
     }
 
+    if (!openScadGeometry.boundingBox) {
+      openScadGeometry.computeBoundingBox();
+    }
+    if (openScadGeometry.boundingBox) {
+      box.intersect(openScadGeometry.boundingBox);
+    }
+
     const center = new THREE.Vector3();
     box.getCenter(center);
     const size = new THREE.Vector3();

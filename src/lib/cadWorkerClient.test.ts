@@ -4,6 +4,7 @@ import {
   detectCadFileType,
   isValidCadFile,
   importCadReferenceFile,
+  runCadWorker,
   parseCadBuffer,
   setCadWorkerFactory,
   extractMeshesToBuffers,
@@ -415,6 +416,129 @@ endsolid unit_box`;
       assert.equal(result.metadata.fileName, 'part2.step');
 
       setCadWorkerFactory(null);
+    });
+
+    it('maintains isolation between concurrent worker requests', async () => {
+      const messageListeners: MessageListener[] = [];
+
+      class ConcurrencyWorker {
+        addEventListener(event: string, listener: unknown) {
+          if (event === 'message') {
+            messageListeners.push(listener as MessageListener);
+          }
+        }
+        removeEventListener() {}
+        postMessage(data: CadImportWorkerRequest) {
+          // Delay responses out of order to ensure request IDs route correctly
+          const delay = data.fileName === 'fileA.step' ? 20 : 5;
+          setTimeout(() => {
+            const fakeResult: CadTessellationResult = {
+              positions: new Float32Array(9),
+              normals: new Float32Array(9),
+              metadata: {
+                fileName: data.fileName,
+                fileSize: 100,
+                fileType: 'step',
+                bounds: {
+                  min: [0, 0, 0],
+                  max: [1, 1, 1],
+                  dimensions: [1, 1, 1],
+                  center: [0.5, 0.5, 0.5],
+                },
+                holes: [],
+                planes: [],
+                triangleCount: 1,
+              },
+            };
+            messageListeners.forEach((fn) =>
+              fn({ data: { id: data.id, success: true, result: fakeResult } }),
+            );
+          }, delay);
+        }
+        terminate() {}
+      }
+
+      setCadWorkerFactory(() => new ConcurrencyWorker() as unknown as Worker);
+
+      const fileA = {
+        name: 'fileA.step',
+        size: 100,
+        arrayBuffer: async () => new ArrayBuffer(100),
+      } as unknown as File;
+
+      const fileB = {
+        name: 'fileB.step',
+        size: 200,
+        arrayBuffer: async () => new ArrayBuffer(200),
+      } as unknown as File;
+
+      // Run concurrently
+      const [resA, resB] = await Promise.all([
+        importCadReferenceFile(fileA),
+        importCadReferenceFile(fileB),
+      ]);
+
+      assert.equal(resA.metadata.fileName, 'fileA.step');
+      assert.equal(resB.metadata.fileName, 'fileB.step');
+
+      setCadWorkerFactory(null);
+    });
+
+    it('gracefully rejects corrupted or 0-byte buffers in parseCadBuffer', async () => {
+      // 0-byte buffer for STEP
+      await assert.rejects(async () => {
+        await parseCadBuffer(new ArrayBuffer(0), 'empty.step', 'step');
+      }, /Failed to parse STEP file: "empty.step"/);
+
+      // 0-byte buffer for IGES
+      await assert.rejects(async () => {
+        await parseCadBuffer(new ArrayBuffer(0), 'empty.iges', 'iges');
+      }, /Failed to parse IGES file: "empty.iges"/);
+
+      // Corrupted non-empty garbage buffer for STEP
+      const garbage = new Uint8Array([0xff, 0xfe, 0x00, 0x12, 0x34]).buffer;
+      await assert.rejects(async () => {
+        await parseCadBuffer(garbage, 'garbage.step', 'step');
+      }, /Failed to parse STEP file: "garbage.step"/);
+    });
+
+    it('times out and terminates worker when CAD processing exceeds timeout', async (t) => {
+      t.mock.timers.enable({ apis: ['setTimeout'] });
+
+      try {
+        let terminated = false;
+        class HangingWorker {
+          addEventListener() {}
+          removeEventListener() {}
+          postMessage() {}
+          terminate() {
+            terminated = true;
+          }
+        }
+
+        setCadWorkerFactory(() => new HangingWorker() as unknown as Worker);
+
+        const promise = runCadWorker(
+          new ArrayBuffer(10),
+          'hanging.step',
+          'step',
+        );
+        t.mock.timers.tick(45000);
+
+        await assert.rejects(promise, {
+          name: 'Error',
+          message: 'CAD processing timed out',
+        });
+
+        assert.equal(
+          terminated,
+          true,
+          'Worker should have been terminated on timeout',
+        );
+      } finally {
+        t.mock.timers.reset();
+        setCadWorkerFactory(null);
+      }
     });
   });
 });

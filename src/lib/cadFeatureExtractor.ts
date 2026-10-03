@@ -75,7 +75,35 @@ interface PlaneCluster {
   normal: [number, number, number];
   offset: number;
   totalArea: number;
-  vertices: [number, number, number][];
+  minU: number;
+  maxU: number;
+  minV: number;
+  maxV: number;
+  sumOffset: number;
+  pointCount: number;
+  sumX: number;
+  sumY: number;
+  sumZ: number;
+}
+
+/**
+ * Projects a 3D point onto the 2D plane according to dominant normal axis.
+ */
+function projectUV(
+  x: number,
+  y: number,
+  z: number,
+  nx: number,
+  ny: number,
+  nz: number,
+): [number, number] {
+  if (Math.abs(nz) >= Math.abs(nx) && Math.abs(nz) >= Math.abs(ny)) {
+    return [x, y];
+  } else if (Math.abs(ny) >= Math.abs(nx) && Math.abs(ny) >= Math.abs(nz)) {
+    return [x, z];
+  } else {
+    return [y, z];
+  }
 }
 
 /**
@@ -145,9 +173,13 @@ export function detectMatingPlanes(
       }
     }
 
-    const v0: [number, number, number] = [x0, y0, z0];
-    const v1: [number, number, number] = [x1, y1, z1];
-    const v2: [number, number, number] = [x2, y2, z2];
+    const [u0, v0] = projectUV(x0, y0, z0, nx, ny, nz);
+    const [u1, v1] = projectUV(x1, y1, z1, nx, ny, nz);
+    const [u2, v2] = projectUV(x2, y2, z2, nx, ny, nz);
+    const triMinU = Math.min(u0, u1, u2);
+    const triMaxU = Math.max(u0, u1, u2);
+    const triMinV = Math.min(v0, v1, v2);
+    const triMaxV = Math.max(v0, v1, v2);
 
     if (matchedCluster) {
       const newArea = matchedCluster.totalArea + area;
@@ -167,13 +199,29 @@ export function detectMatingPlanes(
       matchedCluster.normal = [avgNx, avgNy, avgNz];
       matchedCluster.offset = matchedCluster.offset * w1 + offset * w2;
       matchedCluster.totalArea = newArea;
-      matchedCluster.vertices.push(v0, v1, v2);
+      matchedCluster.minU = Math.min(matchedCluster.minU, triMinU);
+      matchedCluster.maxU = Math.max(matchedCluster.maxU, triMaxU);
+      matchedCluster.minV = Math.min(matchedCluster.minV, triMinV);
+      matchedCluster.maxV = Math.max(matchedCluster.maxV, triMaxV);
+      matchedCluster.sumOffset += offset * 3;
+      matchedCluster.pointCount += 3;
+      matchedCluster.sumX += x0 + x1 + x2;
+      matchedCluster.sumY += y0 + y1 + y2;
+      matchedCluster.sumZ += z0 + z1 + z2;
     } else {
       clusters.push({
         normal: [nx, ny, nz],
         offset,
         totalArea: area,
-        vertices: [v0, v1, v2],
+        minU: triMinU,
+        maxU: triMaxU,
+        minV: triMinV,
+        maxV: triMaxV,
+        sumOffset: offset * 3,
+        pointCount: 3,
+        sumX: x0 + x1 + x2,
+        sumY: y0 + y1 + y2,
+        sumZ: z0 + z1 + z2,
       });
     }
   }
@@ -219,38 +267,12 @@ export function detectMatingPlanes(
       name = `Plane (${round4(nx)}, ${round4(ny)}, ${round4(nz)})`;
     }
 
-    // Determine 2D projected bounds on orthogonal axes
-    let minU = Infinity;
-    let maxU = -Infinity;
-    let minV = Infinity;
-    let maxV = -Infinity;
-
-    for (const [x, y, z] of cluster.vertices) {
-      let u = 0;
-      let v = 0;
-      if (Math.abs(nz) >= Math.abs(nx) && Math.abs(nz) >= Math.abs(ny)) {
-        u = x;
-        v = y;
-      } else if (Math.abs(ny) >= Math.abs(nx) && Math.abs(ny) >= Math.abs(nz)) {
-        u = x;
-        v = z;
-      } else {
-        u = y;
-        v = z;
-      }
-
-      if (u < minU) minU = u;
-      if (u > maxU) maxU = u;
-      if (v < minV) minV = v;
-      if (v > maxV) maxV = v;
-    }
-
     // Recompute offset using snapped normal and average vertex position
-    let sumProj = 0;
-    for (const [x, y, z] of cluster.vertices) {
-      sumProj += x * nx + y * ny + z * nz;
-    }
-    const finalOffset = sumProj / cluster.vertices.length;
+    const finalOffset =
+      cluster.pointCount > 0
+        ? (cluster.sumX * nx + cluster.sumY * ny + cluster.sumZ * nz) /
+          cluster.pointCount
+        : cluster.offset;
 
     planes.push({
       id: `plane-${idx + 1}`,
@@ -258,8 +280,8 @@ export function detectMatingPlanes(
       normal: [round4(nx), round4(ny), round4(nz)],
       offset: round4(finalOffset),
       bounds: {
-        min: [round4(minU), round4(minV)],
-        max: [round4(maxU), round4(maxV)],
+        min: [round4(cluster.minU), round4(cluster.minV)],
+        max: [round4(cluster.maxU), round4(cluster.maxV)],
       },
     });
   });

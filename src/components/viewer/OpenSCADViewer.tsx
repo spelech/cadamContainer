@@ -103,6 +103,7 @@ export function OpenSCADPreview({
           const basename = filename.replace(/^.*[\\/]/, '');
           if (basename !== filename) {
             await writeFile(basename, meshContent);
+            writtenFilesRef.current.set(basename, meshContent);
           }
           writtenFilesRef.current.set(filename, meshContent);
         }
@@ -163,7 +164,9 @@ export function OpenSCADPreview({
           if (cancelled) return;
           const loader = new STLLoader();
           const geom = loader.parse(buffer);
-          geom.center();
+          if (!referenceModel) {
+            geom.center();
+          }
           geom.computeVertexNormals();
           if (mountedGeometryRef.current) mountedGeometryRef.current.dispose();
           mountedGeometryRef.current = geom;
@@ -179,7 +182,7 @@ export function OpenSCADPreview({
     } else {
       clearGeometry();
     }
-  }, [output, onOutputChange]);
+  }, [output, onOutputChange, referenceModel]);
 
   useEffect(() => {
     let cancelled = false;

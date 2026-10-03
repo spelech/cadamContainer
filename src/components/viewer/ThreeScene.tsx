@@ -43,21 +43,22 @@ export function ThreeScene({
   // Store the initial isMobile value to prevent position changes during resize
   const [initialIsMobile] = useState(isMobile);
 
-  // The colored group's meshes sit at their raw OpenSCAD coordinates.
-  // Offset so the combined bounds are centered at origin, mirroring the
-  // STL path's geom.center() behavior.
-  const groupCenterOffset = useMemo(() => {
-    if (!coloredGroup) return null;
-    const box = new THREE.Box3().setFromObject(coloredGroup);
-    if (box.isEmpty()) return new THREE.Vector3();
-    return box.getCenter(new THREE.Vector3()).negate();
-  }, [coloredGroup]);
-
   // CAD Reference Model state and lifted collision detection
   const cadRef = useOptionalCadReference();
   const referenceModel = cadRef?.referenceModel;
   const cadPositions = referenceModel?.positions;
   const cadShowCollisions = referenceModel?.showCollisions;
+
+  // The colored group's meshes sit at their raw OpenSCAD coordinates.
+  // Offset so the combined bounds are centered at origin, mirroring the
+  // STL path's geom.center() behavior, unless a referenceModel is present.
+  const groupCenterOffset = useMemo(() => {
+    if (!coloredGroup) return null;
+    if (referenceModel) return new THREE.Vector3(0, 0, 0);
+    const box = new THREE.Box3().setFromObject(coloredGroup);
+    if (box.isEmpty()) return new THREE.Vector3();
+    return box.getCenter(new THREE.Vector3()).negate();
+  }, [coloredGroup, referenceModel]);
 
   // Single source of truth for collision detection across 3D overlay and HUD
   const collisionReport = useMemo<CollisionReport>(() => {

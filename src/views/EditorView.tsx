@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ConversationContext } from '@/contexts/ConversationContext';
 import { SelectedItemsContext } from '@/contexts/SelectedItemsContext';
 import { useConversation } from '@/contexts/ConversationContext';
+import { useOptionalCadReference } from '@/context/CadReferenceContext';
 import {
   ensureInputRecords,
   messageRowToChatMessage,
@@ -202,6 +203,7 @@ function ConversationEditor() {
   const [parameters, setParameters] = useState<Parameter[]>([]);
   const [currentOutput, setCurrentOutput] = useState<Blob | undefined>();
   const [dxfExporter, setDxfExporter] = useState<DxfExporter | null>(null);
+  const cadRef = useOptionalCadReference();
   const [mobilePreviewVersion, setMobilePreviewVersion] = useState(0);
   // Streaming flag surfaced from <ChatSession>. While true, the preview
   // pane swaps to the bouncing loader instead of mounting OpenSCAD —
@@ -728,9 +730,14 @@ function ConversationEditor() {
         <div className="flex h-full w-full items-center justify-center bg-adam-neutral-700">
           {isChatStreaming ? (
             <Loader showLoadingText />
-          ) : activePreview?.type === 'artifact' ? (
+          ) : activePreview?.type === 'artifact' ||
+            Boolean(cadRef?.referenceModel) ? (
             <OpenSCADPreview
-              scadCode={activePreview.artifact.code}
+              scadCode={
+                activePreview?.type === 'artifact'
+                  ? activePreview.artifact.code
+                  : null
+              }
               color="#00A6FF"
               onOutputChange={setCurrentOutput}
               onDxfExportChange={handleDxfExporterChange}
@@ -748,9 +755,14 @@ function ConversationEditor() {
         <div className="flex h-full w-full items-center justify-center bg-adam-bg-secondary-dark">
           {isChatStreaming ? (
             <Loader showLoadingText />
-          ) : activePreview?.type === 'artifact' ? (
+          ) : activePreview?.type === 'artifact' ||
+            Boolean(cadRef?.referenceModel) ? (
             <OpenSCADPreview
-              scadCode={activePreview.artifact.code}
+              scadCode={
+                activePreview?.type === 'artifact'
+                  ? activePreview.artifact.code
+                  : null
+              }
               color="#00A6FF"
               onOutputChange={setCurrentOutput}
               onDxfExportChange={handleDxfExporterChange}

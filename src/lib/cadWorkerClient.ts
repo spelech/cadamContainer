@@ -344,9 +344,9 @@ async function getOcctInstance(): Promise<OcctInstance> {
   let occtOptions: { locateFile?: (path: string) => string } | undefined =
     undefined;
   // Browser / worker environment wasm resolution
-  const isBrowserOrWorker =
-    typeof window !== 'undefined' ||
-    (typeof self !== 'undefined' && 'importScripts' in self);
+  const isNode =
+    typeof process !== 'undefined' && Boolean(process.versions?.node);
+  const isBrowserOrWorker = !isNode;
 
   if (isBrowserOrWorker) {
     const baseUrl =
@@ -529,7 +529,37 @@ export async function runCadWorker(
   const id = `cad-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
   return new Promise<CadTessellationResult>((resolve, reject) => {
-    pendingRequests.set(id, { resolve, reject });
+    let timeoutId: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      timeoutId = null;
+      pendingRequests.delete(id);
+      if (workerInstance) {
+        try {
+          workerInstance.terminate();
+        } catch {
+          // ignore
+        }
+        workerInstance = null;
+      }
+      reject(new Error('CAD processing timed out'));
+    }, 45000);
+
+    pendingRequests.set(id, {
+      resolve: (result) => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        resolve(result);
+      },
+      reject: (error) => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        reject(error);
+      },
+    });
+
     const message: CadImportWorkerRequest = {
       id,
       fileName,
