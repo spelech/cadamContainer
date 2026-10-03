@@ -11,6 +11,15 @@ import { Suspense, useMemo, useState } from 'react';
 import { OrthographicPerspectiveToggle } from '@/components/viewer/OrthographicPerspectiveToggle';
 import { ViewGizmo } from '@/components/viewer/ViewGizmo';
 import { cn } from '@/lib/utils';
+import {
+  CadReferenceOverlay,
+  CadReferenceHud,
+} from '@/components/viewer/CadReferenceOverlay';
+import {
+  detectInterference,
+  type CollisionReport,
+} from '@/lib/cadCollisionDetector';
+import { useOptionalCadReference } from '@/context/CadReferenceContext';
 
 interface ThreeSceneProps {
   geometry: THREE.BufferGeometry | null;
@@ -18,6 +27,7 @@ interface ThreeSceneProps {
   isMobile?: boolean;
   backgroundColor?: string;
   coloredGroup?: THREE.Group | null;
+  onFixInterference?: (report: CollisionReport) => void;
 }
 
 export function ThreeScene({
@@ -26,21 +36,42 @@ export function ThreeScene({
   isMobile = false,
   backgroundColor = '#3B3B3B',
   coloredGroup,
+  onFixInterference,
 }: ThreeSceneProps) {
   const [isOrthographic, setIsOrthographic] = useState(true);
 
   // Store the initial isMobile value to prevent position changes during resize
   const [initialIsMobile] = useState(isMobile);
 
+  // CAD Reference Model state and lifted collision detection
+  const cadRef = useOptionalCadReference();
+  const referenceModel = cadRef?.referenceModel;
+  const cadPositions = referenceModel?.positions;
+  const cadShowCollisions = referenceModel?.showCollisions;
+
   // The colored group's meshes sit at their raw OpenSCAD coordinates.
   // Offset so the combined bounds are centered at origin, mirroring the
-  // STL path's geom.center() behavior.
+  // STL path's geom.center() behavior, unless a referenceModel is present.
   const groupCenterOffset = useMemo(() => {
     if (!coloredGroup) return null;
+    if (referenceModel) return new THREE.Vector3(0, 0, 0);
     const box = new THREE.Box3().setFromObject(coloredGroup);
     if (box.isEmpty()) return new THREE.Vector3();
     return box.getCenter(new THREE.Vector3()).negate();
-  }, [coloredGroup]);
+  }, [coloredGroup, referenceModel]);
+
+  // Single source of truth for collision detection across 3D overlay and HUD
+  const collisionReport = useMemo<CollisionReport>(() => {
+    if (
+      !cadShowCollisions ||
+      !geometry ||
+      !cadPositions ||
+      cadPositions.length < 9
+    ) {
+      return { hasCollision: false, collidingTriangleCount: 0 };
+    }
+    return detectInterference(cadPositions, geometry);
+  }, [cadPositions, cadShowCollisions, geometry]);
 
   return (
     <div className="relative h-full w-full overflow-hidden">
@@ -101,6 +132,10 @@ export function ThreeScene({
                 />
               </mesh>
             ) : null}
+            <CadReferenceOverlay
+              openScadGeometry={geometry}
+              collisionReport={collisionReport}
+            />
           </Stage>
           {/* <Grid
           position={[0, 0, 0]}
@@ -122,6 +157,12 @@ export function ThreeScene({
           {!initialIsMobile && <ViewGizmo />}
         </Canvas>
       </Suspense>
+
+      <CadReferenceHud
+        openScadGeometry={geometry}
+        collisionReport={collisionReport}
+        onFixInterference={onFixInterference}
+      />
 
       <div
         className={cn(

@@ -40,6 +40,42 @@ function serveOpenScadWasmInDev(): Plugin {
   };
 }
 
+function serveOcctWasmInDev(): Plugin {
+  return {
+    name: 'serve-occt-wasm-in-dev',
+    configureServer(server) {
+      const publicWasmPath = path.resolve(
+        __dirname,
+        'public/occt-import-js.wasm',
+      );
+      const nodeModulesWasmPath = path.resolve(
+        __dirname,
+        'node_modules/occt-import-js/dist/occt-import-js.wasm',
+      );
+
+      server.middlewares.use((req, res, next) => {
+        if (!req.url) return next();
+
+        const url = new URL(req.url, 'http://localhost');
+        if (url.pathname !== `${normalizedAppBase}/occt-import-js.wasm`) {
+          return next();
+        }
+
+        const wasmPath = fs.existsSync(publicWasmPath)
+          ? publicWasmPath
+          : nodeModulesWasmPath;
+
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/wasm');
+        res.setHeader('Cache-Control', 'no-cache');
+        fs.createReadStream(wasmPath)
+          .on('error', (error) => next(error))
+          .pipe(res);
+      });
+    },
+  };
+}
+
 function mockClientModules(): Plugin {
   const emptyMock = path.resolve(__dirname, './src/lib/emptyMock.ts');
   return {
@@ -75,6 +111,7 @@ export default defineConfig({
   plugins: [
     mockClientModules(),
     serveOpenScadWasmInDev(),
+    serveOcctWasmInDev(),
     tanstackStart({
       router: {
         basepath: normalizedAppBase,

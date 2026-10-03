@@ -14,17 +14,9 @@ import { cn } from '@/lib/utils';
 import { MeshFilesContext } from '@/contexts/MeshFilesContext';
 import { createDXFProjectionCode } from '@/utils/dxfUtils';
 import { DxfExporter } from '@/utils/downloadUtils';
-
-// Extract import() filenames from OpenSCAD code
-function extractImportFilenames(code: string): string[] {
-  const importRegex = /import\s*\(\s*"([^"]+)"\s*\)/g;
-  const filenames: string[] = [];
-  let match;
-  while ((match = importRegex.exec(code)) !== null) {
-    filenames.push(match[1]);
-  }
-  return filenames;
-}
+import { useOptionalCadReference } from '@/context/CadReferenceContext';
+import type { CollisionReport } from '@/lib/cadCollisionDetector';
+import { extractImportFilenames } from '@/lib/cadPromptBuilder';
 
 // Brand-fallback `color` arrives as a CSS hex string (e.g. "#00A6FF") since
 // it's also handed to react-three-fiber's <meshStandardMaterial color>. The
@@ -41,6 +33,7 @@ interface OpenSCADPreviewProps {
   onOutputChange?: (output: Blob | undefined) => void;
   onDxfExportChange?: (exporter: DxfExporter | null) => void;
   fixError?: (error: OpenSCADError) => void;
+  onFixInterference?: (report: CollisionReport) => void;
   isMobile?: boolean;
   backgroundColor?: string;
 }
@@ -51,6 +44,7 @@ export function OpenSCADPreview({
   onOutputChange,
   onDxfExportChange,
   fixError,
+  onFixInterference,
   isMobile,
   backgroundColor,
 }: OpenSCADPreviewProps) {
@@ -64,6 +58,8 @@ export function OpenSCADPreview({
     isError,
     error,
   } = useOpenSCAD();
+  const cadRef = useOptionalCadReference();
+  const referenceModel = cadRef?.referenceModel;
   const [geometry, setGeometry] = useState<BufferGeometry | null>(null);
   const [coloredGroup, setColoredGroup] = useState<Group | null>(null);
   // Use context directly to avoid throwing if provider is not mounted (e.g. VisualCard)
@@ -104,6 +100,11 @@ export function OpenSCADPreview({
 
         if (needsWrite && meshContent) {
           await writeFile(filename, meshContent);
+          const basename = filename.replace(/^.*[\\/]/, '');
+          if (basename !== filename) {
+            await writeFile(basename, meshContent);
+            writtenFilesRef.current.set(basename, meshContent);
+          }
           writtenFilesRef.current.set(filename, meshContent);
         }
       }
@@ -163,7 +164,9 @@ export function OpenSCADPreview({
           if (cancelled) return;
           const loader = new STLLoader();
           const geom = loader.parse(buffer);
-          geom.center();
+          if (!referenceModel) {
+            geom.center();
+          }
           geom.computeVertexNormals();
           if (mountedGeometryRef.current) mountedGeometryRef.current.dispose();
           mountedGeometryRef.current = geom;
@@ -179,7 +182,7 @@ export function OpenSCADPreview({
     } else {
       clearGeometry();
     }
-  }, [output, onOutputChange]);
+  }, [output, onOutputChange, referenceModel]);
 
   useEffect(() => {
     let cancelled = false;
@@ -249,7 +252,7 @@ export function OpenSCADPreview({
   return (
     <div className="relative h-full w-full bg-adam-neutral-700/50 transition-all duration-300 ease-in-out">
       <div className="h-full w-full">
-        {geometry || coloredGroup ? (
+        {geometry || coloredGroup || referenceModel ? (
           <div className="h-full w-full">
             <ThreeScene
               geometry={geometry}
@@ -257,6 +260,7 @@ export function OpenSCADPreview({
               color={color}
               isMobile={isMobile}
               backgroundColor={backgroundColor}
+              onFixInterference={onFixInterference}
             />
           </div>
         ) : (
