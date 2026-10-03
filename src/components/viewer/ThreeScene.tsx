@@ -15,7 +15,11 @@ import {
   CadReferenceOverlay,
   CadReferenceHud,
 } from '@/components/viewer/CadReferenceOverlay';
-import type { CollisionReport } from '@/lib/cadCollisionDetector';
+import {
+  detectInterference,
+  type CollisionReport,
+} from '@/lib/cadCollisionDetector';
+import { useOptionalCadReference } from '@/context/CadReferenceContext';
 
 interface ThreeSceneProps {
   geometry: THREE.BufferGeometry | null;
@@ -48,6 +52,25 @@ export function ThreeScene({
     if (box.isEmpty()) return new THREE.Vector3();
     return box.getCenter(new THREE.Vector3()).negate();
   }, [coloredGroup]);
+
+  // CAD Reference Model state and lifted collision detection
+  const cadRef = useOptionalCadReference();
+  const referenceModel = cadRef?.referenceModel;
+  const cadPositions = referenceModel?.positions;
+  const cadShowCollisions = referenceModel?.showCollisions;
+
+  // Single source of truth for collision detection across 3D overlay and HUD
+  const collisionReport = useMemo<CollisionReport>(() => {
+    if (
+      !cadShowCollisions ||
+      !geometry ||
+      !cadPositions ||
+      cadPositions.length < 9
+    ) {
+      return { hasCollision: false, collidingTriangleCount: 0 };
+    }
+    return detectInterference(cadPositions, geometry);
+  }, [cadPositions, cadShowCollisions, geometry]);
 
   return (
     <div className="relative h-full w-full overflow-hidden">
@@ -108,7 +131,10 @@ export function ThreeScene({
                 />
               </mesh>
             ) : null}
-            <CadReferenceOverlay openScadGeometry={geometry} />
+            <CadReferenceOverlay
+              openScadGeometry={geometry}
+              collisionReport={collisionReport}
+            />
           </Stage>
           {/* <Grid
           position={[0, 0, 0]}
@@ -133,6 +159,7 @@ export function ThreeScene({
 
       <CadReferenceHud
         openScadGeometry={geometry}
+        collisionReport={collisionReport}
         onFixInterference={onFixInterference}
       />
 

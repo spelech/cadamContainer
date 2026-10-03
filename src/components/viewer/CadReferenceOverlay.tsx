@@ -21,6 +21,7 @@ import type { CadViewerDisplayMode } from '@/types/cadReference';
 
 interface CadReferenceOverlayProps {
   openScadGeometry?: THREE.BufferGeometry | null;
+  collisionReport?: CollisionReport;
 }
 
 /**
@@ -30,40 +31,31 @@ interface CadReferenceOverlayProps {
  */
 export function CadReferenceOverlay({
   openScadGeometry,
+  collisionReport: propCollisionReport,
 }: CadReferenceOverlayProps) {
   const cadRef = useOptionalCadReference();
   const referenceModel = cadRef?.referenceModel;
+  const positions = referenceModel?.positions;
+  const normals = referenceModel?.normals;
+  const showCollisions = referenceModel?.showCollisions;
 
   // Memoize BufferGeometry for the reference model
   const geometry = useMemo(() => {
-    if (
-      !referenceModel ||
-      !referenceModel.positions ||
-      referenceModel.positions.length < 9
-    ) {
+    if (!positions || positions.length < 9) {
       return null;
     }
 
     const geom = new THREE.BufferGeometry();
-    geom.setAttribute(
-      'position',
-      new THREE.BufferAttribute(referenceModel.positions, 3),
-    );
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-    if (
-      referenceModel.normals &&
-      referenceModel.normals.length === referenceModel.positions.length
-    ) {
-      geom.setAttribute(
-        'normal',
-        new THREE.BufferAttribute(referenceModel.normals, 3),
-      );
+    if (normals && normals.length === positions.length) {
+      geom.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
     } else {
       geom.computeVertexNormals();
     }
 
     return geom;
-  }, [referenceModel]);
+  }, [positions, normals]);
 
   // Clean up geometry buffers when unmounting or changing reference model
   useEffect(() => {
@@ -72,20 +64,21 @@ export function CadReferenceOverlay({
     };
   }, [geometry]);
 
-  // Run BVH-based interference detection against OpenSCAD geometry
-  const collisionReport = useMemo<CollisionReport>(() => {
+  // Run BVH-based interference detection against OpenSCAD geometry if not provided by parent
+  const internalCollisionReport = useMemo<CollisionReport>(() => {
     if (
-      !referenceModel ||
-      !referenceModel.showCollisions ||
+      !showCollisions ||
       !openScadGeometry ||
-      !referenceModel.positions ||
-      referenceModel.positions.length < 9
+      !positions ||
+      positions.length < 9
     ) {
       return { hasCollision: false, collidingTriangleCount: 0 };
     }
 
-    return detectInterference(referenceModel.positions, openScadGeometry);
-  }, [referenceModel, openScadGeometry]);
+    return detectInterference(positions, openScadGeometry);
+  }, [positions, showCollisions, openScadGeometry]);
+
+  const collisionReport = propCollisionReport ?? internalCollisionReport;
 
   // Memoize BufferGeometry for colliding triangles to highlight them in red
   const collidingGeometry = useMemo(() => {
@@ -116,7 +109,7 @@ export function CadReferenceOverlay({
     return null;
   }
 
-  const { displayMode, opacity, showCollisions } = referenceModel;
+  const { displayMode, opacity } = referenceModel;
 
   return (
     <group rotation={[-Math.PI / 2, 0, 0]} name="cad-reference-overlay-group">
@@ -175,6 +168,7 @@ export { CadReferenceOverlay as CadReferenceMesh };
 
 interface CadReferenceHudProps {
   openScadGeometry?: THREE.BufferGeometry | null;
+  collisionReport?: CollisionReport;
   onFixInterference?: (report: CollisionReport) => void;
   className?: string;
 }
@@ -187,6 +181,7 @@ interface CadReferenceHudProps {
  */
 export function CadReferenceHud({
   openScadGeometry,
+  collisionReport: propCollisionReport,
   onFixInterference,
   className,
 }: CadReferenceHudProps) {
@@ -196,20 +191,23 @@ export function CadReferenceHud({
   const referenceModel = cadRef?.referenceModel;
   const setOpacity = cadRef?.setOpacity;
   const setDisplayMode = cadRef?.setDisplayMode;
+  const positions = referenceModel?.positions;
+  const showCollisions = referenceModel?.showCollisions;
 
-  const collisionReport = useMemo<CollisionReport>(() => {
+  const internalCollisionReport = useMemo<CollisionReport>(() => {
     if (
-      !referenceModel ||
-      !referenceModel.showCollisions ||
+      !showCollisions ||
       !openScadGeometry ||
-      !referenceModel.positions ||
-      referenceModel.positions.length < 9
+      !positions ||
+      positions.length < 9
     ) {
       return { hasCollision: false, collidingTriangleCount: 0 };
     }
 
-    return detectInterference(referenceModel.positions, openScadGeometry);
-  }, [referenceModel, openScadGeometry]);
+    return detectInterference(positions, openScadGeometry);
+  }, [positions, showCollisions, openScadGeometry]);
+
+  const collisionReport = propCollisionReport ?? internalCollisionReport;
 
   if (!referenceModel) {
     return null;

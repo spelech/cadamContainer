@@ -9,6 +9,9 @@ export interface CollisionReport {
   collidingPositions?: Float32Array;
 }
 
+// Cache reference model BVHs by their Float32Array positions buffer
+const refBvhCache = new WeakMap<Float32Array, MeshBVH>();
+
 /**
  * Detects 3D geometric interference between CAD reference model vertex positions
  * and compiled OpenSCAD mesh geometry using bounding volume hierarchies (BVH).
@@ -37,12 +40,16 @@ export function detectInterference(
   }
 
   try {
-    const refGeom = new THREE.BufferGeometry();
-    refGeom.setAttribute(
-      'position',
-      new THREE.BufferAttribute(referencePositions, 3),
-    );
-    const refBvh = new MeshBVH(refGeom);
+    let refBvh = refBvhCache.get(referencePositions);
+    if (!refBvh) {
+      const refGeom = new THREE.BufferGeometry();
+      refGeom.setAttribute(
+        'position',
+        new THREE.BufferAttribute(referencePositions, 3),
+      );
+      refBvh = new MeshBVH(refGeom);
+      refBvhCache.set(referencePositions, refBvh);
+    }
 
     // Reuse cached boundsTree on OpenSCAD geometry if available
     let scadBvh = (openScadGeometry as { boundsTree?: MeshBVH }).boundsTree;

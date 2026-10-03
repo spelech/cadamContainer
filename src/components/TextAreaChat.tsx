@@ -511,16 +511,19 @@ function TextAreaChat({
   const hasCadReference = referenceModel !== null || isCadLoading;
   const hasAnyAttachedItems = hasMediaItems || hasCadReference;
 
+  const tessellatedStlBytes = referenceModel?.metadata.tessellatedStlBytes;
+  const cadFileName = referenceModel?.metadata.fileName;
+
   // Ensure non-STL (and STL) models register their tessellatedStlBytes with meshFiles for OpenSCAD assembly import
   useEffect(() => {
-    if (referenceModel?.metadata.tessellatedStlBytes) {
-      const stlName = getAssemblyStlFileName(referenceModel.metadata.fileName);
-      const blob = new Blob([referenceModel.metadata.tessellatedStlBytes], {
+    if (tessellatedStlBytes && cadFileName) {
+      const stlName = getAssemblyStlFileName(cadFileName);
+      const blob = new Blob([tessellatedStlBytes], {
         type: 'model/stl',
       });
       meshFiles.setMeshFile(stlName, blob);
     }
-  }, [referenceModel, meshFiles]);
+  }, [tessellatedStlBytes, cadFileName, meshFiles]);
 
   const creativeModel =
     type === 'creative' && isCreativeModel(model) ? model : null;
