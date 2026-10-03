@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils';
 import { MeshFilesContext } from '@/contexts/MeshFilesContext';
 import { createDXFProjectionCode } from '@/utils/dxfUtils';
 import { DxfExporter } from '@/utils/downloadUtils';
+import { useOptionalCadReference } from '@/context/CadReferenceContext';
+import type { CollisionReport } from '@/lib/cadCollisionDetector';
 
 // Extract import() filenames from OpenSCAD code
 function extractImportFilenames(code: string): string[] {
@@ -41,6 +43,7 @@ interface OpenSCADPreviewProps {
   onOutputChange?: (output: Blob | undefined) => void;
   onDxfExportChange?: (exporter: DxfExporter | null) => void;
   fixError?: (error: OpenSCADError) => void;
+  onFixInterference?: (report: CollisionReport) => void;
   isMobile?: boolean;
   backgroundColor?: string;
 }
@@ -51,6 +54,7 @@ export function OpenSCADPreview({
   onOutputChange,
   onDxfExportChange,
   fixError,
+  onFixInterference,
   isMobile,
   backgroundColor,
 }: OpenSCADPreviewProps) {
@@ -64,6 +68,8 @@ export function OpenSCADPreview({
     isError,
     error,
   } = useOpenSCAD();
+  const cadRef = useOptionalCadReference();
+  const referenceModel = cadRef?.referenceModel;
   const [geometry, setGeometry] = useState<BufferGeometry | null>(null);
   const [coloredGroup, setColoredGroup] = useState<Group | null>(null);
   // Use context directly to avoid throwing if provider is not mounted (e.g. VisualCard)
@@ -249,7 +255,7 @@ export function OpenSCADPreview({
   return (
     <div className="relative h-full w-full bg-adam-neutral-700/50 transition-all duration-300 ease-in-out">
       <div className="h-full w-full">
-        {geometry || coloredGroup ? (
+        {geometry || coloredGroup || referenceModel ? (
           <div className="h-full w-full">
             <ThreeScene
               geometry={geometry}
@@ -257,6 +263,7 @@ export function OpenSCADPreview({
               color={color}
               isMobile={isMobile}
               backgroundColor={backgroundColor}
+              onFixInterference={onFixInterference}
             />
           </div>
         ) : (

@@ -11,6 +11,11 @@ import { Suspense, useMemo, useState } from 'react';
 import { OrthographicPerspectiveToggle } from '@/components/viewer/OrthographicPerspectiveToggle';
 import { ViewGizmo } from '@/components/viewer/ViewGizmo';
 import { cn } from '@/lib/utils';
+import {
+  CadReferenceOverlay,
+  CadReferenceHud,
+} from '@/components/viewer/CadReferenceOverlay';
+import type { CollisionReport } from '@/lib/cadCollisionDetector';
 
 interface ThreeSceneProps {
   geometry: THREE.BufferGeometry | null;
@@ -18,6 +23,7 @@ interface ThreeSceneProps {
   isMobile?: boolean;
   backgroundColor?: string;
   coloredGroup?: THREE.Group | null;
+  onFixInterference?: (report: CollisionReport) => void;
 }
 
 export function ThreeScene({
@@ -26,6 +32,7 @@ export function ThreeScene({
   isMobile = false,
   backgroundColor = '#3B3B3B',
   coloredGroup,
+  onFixInterference,
 }: ThreeSceneProps) {
   const [isOrthographic, setIsOrthographic] = useState(true);
 
@@ -101,6 +108,7 @@ export function ThreeScene({
                 />
               </mesh>
             ) : null}
+            <CadReferenceOverlay openScadGeometry={geometry} />
           </Stage>
           {/* <Grid
           position={[0, 0, 0]}
@@ -122,6 +130,11 @@ export function ThreeScene({
           {!initialIsMobile && <ViewGizmo />}
         </Canvas>
       </Suspense>
+
+      <CadReferenceHud
+        openScadGeometry={geometry}
+        onFixInterference={onFixInterference}
+      />
 
       <div
         className={cn(

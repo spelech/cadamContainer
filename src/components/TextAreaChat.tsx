@@ -62,7 +62,10 @@ import {
 } from '@/utils/meshUtils';
 import { useMeshFiles } from '@/contexts/MeshFilesContext';
 import { useOptionalCadReference } from '@/context/CadReferenceContext';
-import { formatCadReferencePrompt } from '@/lib/cadPromptBuilder';
+import {
+  formatCadReferencePrompt,
+  getAssemblyStlFileName,
+} from '@/lib/cadPromptBuilder';
 import { detectCadFileType, isValidCadFile } from '@/lib/cadWorkerClient';
 import { AnimatePresence, motion } from 'framer-motion';
 import { apiJson } from '@/services/api';
@@ -507,6 +510,17 @@ function TextAreaChat({
   const hasMediaItems = images.length > 0 || mesh !== null;
   const hasCadReference = referenceModel !== null || isCadLoading;
   const hasAnyAttachedItems = hasMediaItems || hasCadReference;
+
+  // Ensure non-STL (and STL) models register their tessellatedStlBytes with meshFiles for OpenSCAD assembly import
+  useEffect(() => {
+    if (referenceModel?.metadata.tessellatedStlBytes) {
+      const stlName = getAssemblyStlFileName(referenceModel.metadata.fileName);
+      const blob = new Blob([referenceModel.metadata.tessellatedStlBytes], {
+        type: 'model/stl',
+      });
+      meshFiles.setMeshFile(stlName, blob);
+    }
+  }, [referenceModel, meshFiles]);
 
   const creativeModel =
     type === 'creative' && isCreativeModel(model) ? model : null;
@@ -1857,8 +1871,12 @@ function TextAreaChat({
                   images.some((img) => img.isUploading) && 'opacity-50',
                 )}
                 disabled={
-                  (images.length === 0 && !input?.trim()) ||
+                  (images.length === 0 &&
+                    !input?.trim() &&
+                    !mesh &&
+                    !referenceModel) ||
                   isLoading ||
+                  isCadLoading ||
                   images.some((img) => img.isUploading) ||
                   disabled
                 }

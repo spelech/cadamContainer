@@ -55,7 +55,7 @@ function formatPlane(plane: CadMatingPlane, index: number): string {
 /**
  * Converts any CAD reference file name to its tessellated STL equivalent for OpenSCAD assembly import.
  */
-function getAssemblyStlFileName(fileName: string): string {
+export function getAssemblyStlFileName(fileName: string): string {
   const sanitized = fileName.replace(/["\\]/g, '');
   if (/\.stl$/i.test(sanitized)) {
     return sanitized;
