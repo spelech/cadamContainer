@@ -160,4 +160,28 @@ describe('cadPromptBuilder', () => {
     assert.match(prompt, /None detected/i);
     assert.match(prompt, /%import\("plain_block\.stl"\)/);
   });
+
+  it('sanitizes double quotes and backslashes in assembly %import filename', () => {
+    const maliciousMetadata: CadReferenceMetadata = {
+      fileName: 'bracket"bad\\name.step',
+      fileSize: 100,
+      fileType: 'step',
+      bounds: {
+        min: [0, 0, 0],
+        max: [10, 10, 10],
+        dimensions: [10, 10, 10],
+        center: [5, 5, 5],
+      },
+      holes: [],
+      planes: [],
+      triangleCount: 12,
+    };
+
+    const prompt = formatCadReferencePrompt(maliciousMetadata, {
+      includeInAssembly: true,
+    });
+
+    assert.match(prompt, /%import\("bracketbadname\.stl"\)/);
+    assert.doesNotMatch(prompt, /["\\]bad/);
+  });
 });

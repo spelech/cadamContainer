@@ -56,10 +56,11 @@ function formatPlane(plane: CadMatingPlane, index: number): string {
  * Converts any CAD reference file name to its tessellated STL equivalent for OpenSCAD assembly import.
  */
 function getAssemblyStlFileName(fileName: string): string {
-  if (/\.stl$/i.test(fileName)) {
-    return fileName;
+  const sanitized = fileName.replace(/["\\]/g, '');
+  if (/\.stl$/i.test(sanitized)) {
+    return sanitized;
   }
-  return `${fileName.replace(/\.[^/.]+$/, '')}.stl`;
+  return `${sanitized.replace(/\.[^/.]+$/, '')}.stl`;
 }
 
 /**
@@ -77,12 +78,13 @@ export function formatCadReferencePrompt(
   const includeInAssembly = Boolean(options?.includeInAssembly);
 
   const { bounds, holes, planes, fileName } = metadata;
+  const cleanFileName = fileName.replace(/["\\]/g, '');
   const [dimX, dimY, dimZ] = bounds.dimensions;
   const [minX, minY, minZ] = bounds.min;
   const [maxX, maxY, maxZ] = bounds.max;
 
   const lines: string[] = [
-    `[ATTACHED REFERENCE CAD MODEL: ${fileName}]`,
+    `[ATTACHED REFERENCE CAD MODEL: ${cleanFileName}]`,
     'The user has attached a physical reference CAD model to mate with or enclose.',
     'Use these measured dimensions as exact constraints for your OpenSCAD code:',
     '',

@@ -17,11 +17,7 @@ import {
   Box,
   X,
 } from 'lucide-react';
-import {
-  cn,
-  CREATIVE_MODELS,
-  parametricModelSupportsVision,
-} from '@/lib/utils';
+import { cn, CREATIVE_MODELS } from '@/lib/utils';
 import { useAvailableModels } from '@/hooks/useAvailableModels';
 import { resolveModelWithFallback } from '@/lib/modelResolution';
 import { CreativeModel, MeshFileType, Model } from '@shared/types';
@@ -65,6 +61,9 @@ import {
   BoundingBox,
 } from '@/utils/meshUtils';
 import { useMeshFiles } from '@/contexts/MeshFilesContext';
+import { useOptionalCadReference } from '@/context/CadReferenceContext';
+import { formatCadReferencePrompt } from '@/lib/cadPromptBuilder';
+import { detectCadFileType, isValidCadFile } from '@/lib/cadWorkerClient';
 import { AnimatePresence, motion } from 'framer-motion';
 import { apiJson } from '@/services/api';
 import { z } from 'zod';
@@ -498,6 +497,17 @@ function TextAreaChat({
   const { session } = useAuth();
   const { images, mesh, setImages, setMesh } = useItemSelection();
   const meshFiles = useMeshFiles();
+  const cadRef = useOptionalCadReference();
+  const referenceModel = cadRef?.referenceModel ?? null;
+  const isCadLoading = cadRef?.isLoading ?? false;
+  const setReferenceFile = cadRef?.setReferenceFile;
+  const setIncludeInAssembly = cadRef?.setIncludeInAssembly;
+  const clearReference = cadRef?.clearReference;
+
+  const hasMediaItems = images.length > 0 || mesh !== null;
+  const hasCadReference = referenceModel !== null || isCadLoading;
+  const hasAnyAttachedItems = hasMediaItems || hasCadReference;
+
   const creativeModel =
     type === 'creative' && isCreativeModel(model) ? model : null;
   const showPolygonControls = creativeModel
@@ -750,17 +760,28 @@ function TextAreaChat({
   }, [images, setModel, model, type]);
 
   const handleSubmit = async () => {
-    const hasNoInput = images.length === 0 && !input?.trim() && !mesh;
+    const hasNoInput =
+      images.length === 0 && !input?.trim() && !mesh && !referenceModel;
     const hasUploadingImages = images.some((img) => img.isUploading);
 
-    if (hasNoInput || isLoading || hasUploadingImages) {
+    if (hasNoInput || isLoading || hasUploadingImages || isCadLoading) {
       return;
     }
     const text = input.trim();
     const parts: AppUIMessage['parts'] = [];
 
-    if (text) {
-      parts.push({ type: 'text', text });
+    let combinedText = text;
+    if (referenceModel) {
+      const cadPrompt = formatCadReferencePrompt(referenceModel.metadata, {
+        includeInAssembly: referenceModel.includeInAssembly,
+      });
+      combinedText = combinedText
+        ? `${combinedText}\n\n${cadPrompt}`
+        : cadPrompt;
+    }
+
+    if (combinedText) {
+      parts.push({ type: 'text', text: combinedText });
     }
 
     for (const image of images) {
@@ -960,7 +981,19 @@ function TextAreaChat({
       }),
     );
 
+    const cadFiles = newItems.filter((file) => {
+      if (type === 'parametric') {
+        return isValidCadFile(file.name);
+      }
+      const cadType = detectCadFileType(file.name);
+      return cadType === 'step' || cadType === 'iges';
+    });
+
     const validMeshes = newItems.map((file) => {
+      if (type === 'parametric') {
+        // Parametric mode handles all CAD/mesh files via cadReference
+        return null;
+      }
       if (!isSupportedMeshFile(file.name, type)) {
         return null;
       }
@@ -978,7 +1011,8 @@ function TextAreaChat({
     );
 
     hasInvalidItems =
-      newItems.length > filteredImages.length + filteredMeshes.length;
+      newItems.length >
+      filteredImages.length + filteredMeshes.length + cadFiles.length;
 
     // Show specific errors first, then generic error only if there are truly invalid file types
     if (hasSmallImages) {
@@ -1004,9 +1038,29 @@ function TextAreaChat({
         title: 'Invalid file format',
         description:
           type === 'creative'
-            ? 'Some files were not added because they are not valid file formats. Must be jpeg, png, webp, glb, stl, or obj.'
-            : 'Some files were not added because they are not valid file formats. Must be jpeg, png, webp, or stl.',
+            ? 'Some files were not added because they are not valid file formats. Must be jpeg, png, webp, glb, stl, obj, step, or iges.'
+            : 'Some files were not added because they are not valid file formats. Must be jpeg, png, webp, stl, step, or iges.',
       });
+    }
+
+    if (cadFiles.length > 0) {
+      const cadFile = cadFiles[0];
+      if (type === 'creative') {
+        onTypeChange?.('parametric');
+      }
+      if (cadFile.name.toLowerCase().endsWith('.stl')) {
+        meshFiles.setMeshFile(cadFile.name, cadFile);
+      }
+      if (setReferenceFile) {
+        setReferenceFile(cadFile).catch((err) => {
+          toast({
+            title: 'Failed to import CAD reference file',
+            description:
+              err instanceof Error ? err.message : 'Unknown error occurred',
+            variant: 'destructive',
+          });
+        });
+      }
     }
 
     filteredMeshes.forEach(async (file) => {
@@ -1340,14 +1394,14 @@ function TextAreaChat({
           'transition-[height,opacity,border-color,background-color] duration-200 ease-in-out',
           disabled
             ? 'h-0 border-transparent bg-transparent opacity-0'
-            : !isDragging && images.length === 0 && mesh === null
+            : !isDragging && !hasAnyAttachedItems
               ? 'h-0 border-transparent bg-transparent opacity-0'
               : isDragging
                 ? isDragHover
                   ? 'h-20 border-[#00A6FF] bg-[rgba(0,166,255,0.24)] opacity-100' // Blue, full height
                   : 'h-20 border-[#0077B7] bg-[rgba(0,166,255,0.12)] opacity-100' // Intermediate blue, full height
-                : images.length > 0 || mesh !== null
-                  ? 'h-20 border-adam-neutral-700 bg-adam-neutral-950 opacity-100'
+                : hasAnyAttachedItems
+                  ? 'h-auto min-h-14 border-adam-neutral-700 bg-adam-neutral-950 opacity-100'
                   : 'h-0 border-transparent bg-transparent opacity-0',
         )}
         onDragEnter={(event) => {
@@ -1373,12 +1427,11 @@ function TextAreaChat({
       >
         {!disabled && (
           <>
-            {/* Case 1: Dragging, and items are ALREADY present -> Show "Add more images" prompt */}
-            {isDragging && (images.length > 0 || mesh !== null) ? (
+            {/* Case 1: Dragging, and items are ALREADY present -> Show "Add more images/CAD models" prompt */}
+            {isDragging && hasAnyAttachedItems ? (
               <div
                 className={cn(
-                  'flex h-full w-full flex-row items-center justify-center gap-2', // Ensure it fills parent
-                  // Opacity is handled by the parent's transition when it appears/disappears due to isDragging
+                  'flex h-20 w-full flex-row items-center justify-center gap-2',
                 )}
               >
                 <Images
@@ -1393,14 +1446,14 @@ function TextAreaChat({
                     color: isDragHover ? '#00A6FF' : 'rgba(0, 166, 255, 0.85)',
                   }}
                 >
-                  Add more images here
+                  Add more images or CAD models here
                 </p>
               </div>
-            ) : /* Case 2: No items (images/mesh are zero) -> Show original "Drop images and 3D models here" logic */
-            images.length === 0 && mesh === null ? (
+            ) : !hasAnyAttachedItems ? (
+              /* Case 2: No items -> Show original "Drop images and 3D models here" logic */
               <div
                 className={cn(
-                  'flex h-full w-full flex-row items-center justify-center gap-2', // Ensure it fills parent
+                  'flex h-full w-full flex-row items-center justify-center gap-2',
                   dropMessageTransitionClass,
                   dropMessageOpacityClass,
                 )}
@@ -1421,95 +1474,149 @@ function TextAreaChat({
                 </p>
               </div>
             ) : (
-              /* Case 3: Items are present, and NOT dragging -> Show thumbnails */
-              (images.length > 0 || mesh !== null) && (
-                <div
-                  className={cn(
-                    'flex w-full items-center gap-4 overflow-x-auto overflow-y-hidden p-4',
-                    // Opacity dimming logic can remain if desired, or be simplified
-                    isDragging && (images.length > 0 || mesh !== null)
-                      ? 'opacity-60'
-                      : 'opacity-100',
-                    'transition-opacity duration-150',
-                  )}
-                >
-                  <AnimatePresence>
-                    {' '}
-                    {/* Ensure no initial={false} here */}
-                    {mesh && (
-                      <motion.div
-                        key={`mesh-${mesh.id}`}
-                        className="relative h-12 w-12 flex-shrink-0"
-                        variants={itemAnimationVariants}
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
-                        layout
-                      >
-                        {mesh.url && (
+              /* Case 3: Items are present -> Show previews */
+              <div
+                className={cn(
+                  'flex w-full flex-col gap-2 p-2.5',
+                  isDragging && 'opacity-60',
+                  'transition-opacity duration-150',
+                )}
+              >
+                {/* CAD Reference Model Loading */}
+                {isCadLoading && (
+                  <div
+                    data-testid="cad-reference-loading"
+                    className="flex items-center gap-2 rounded-lg border border-adam-neutral-700 bg-adam-neutral-800/80 px-3 py-1.5 text-xs text-adam-text-secondary"
+                  >
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-adam-blue" />
+                    <span>Loading CAD reference model...</span>
+                  </div>
+                )}
+
+                {/* Attached CAD Reference Model Pill */}
+                {referenceModel && (
+                  <div
+                    data-testid="cad-reference-pill"
+                    className="flex flex-wrap items-center gap-2.5 rounded-lg border border-adam-neutral-700 bg-adam-neutral-800/90 px-3 py-1.5 text-xs shadow-sm"
+                  >
+                    <span className="rounded bg-adam-blue/20 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-adam-blue">
+                      {referenceModel.metadata.fileType.toUpperCase()}
+                    </span>
+                    <span
+                      className="max-w-[200px] truncate font-medium text-adam-text-primary"
+                      title={referenceModel.metadata.fileName}
+                    >
+                      {referenceModel.metadata.fileName}
+                    </span>
+                    <span className="whitespace-nowrap text-adam-text-secondary">
+                      ({referenceModel.metadata.bounds.dimensions[0].toFixed(1)}{' '}
+                      ×{' '}
+                      {referenceModel.metadata.bounds.dimensions[1].toFixed(1)}{' '}
+                      ×{' '}
+                      {referenceModel.metadata.bounds.dimensions[2].toFixed(1)}{' '}
+                      mm)
+                    </span>
+                    <label className="ml-auto flex cursor-pointer select-none items-center gap-1.5 text-adam-text-secondary transition-colors hover:text-adam-text-primary">
+                      <input
+                        type="checkbox"
+                        checked={referenceModel.includeInAssembly}
+                        onChange={(e) =>
+                          setIncludeInAssembly?.(e.target.checked)
+                        }
+                        className="border-adam-neutral-600 h-3.5 w-3.5 cursor-pointer rounded bg-adam-neutral-900 text-adam-blue focus:ring-0"
+                      />
+                      <span>Include in assembly (import into SCAD)</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => clearReference?.()}
+                      aria-label="Remove reference model"
+                      className="ml-1 rounded p-0.5 text-adam-text-secondary transition-colors hover:bg-adam-neutral-700 hover:text-adam-text-primary"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                {/* Mesh & Images previews */}
+                {hasMediaItems && (
+                  <div className="flex w-full items-center gap-4 overflow-x-auto overflow-y-hidden p-1">
+                    <AnimatePresence>
+                      {mesh && (
+                        <motion.div
+                          key={`mesh-${mesh.id}`}
+                          className="relative h-12 w-12 flex-shrink-0"
+                          variants={itemAnimationVariants}
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                          layout
+                        >
+                          {mesh.url && (
+                            <img
+                              src={mesh.url}
+                              alt="Mesh"
+                              className="h-12 w-12 rounded-md object-cover"
+                            />
+                          )}
+                          {mesh.isUploading && (
+                            <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/50">
+                              <Loader2 className="h-4 w-4 animate-spin text-white" />
+                            </div>
+                          )}
+                          {!mesh.isUploading && (
+                            <div className="absolute bottom-[-0.50rem] right-[-0.50rem] rounded-full border border-adam-neutral-500 bg-adam-neutral-500 text-white transition-colors duration-200 hover:border-adam-neutral-700 hover:bg-adam-neutral-700">
+                              <Box className="h-4 w-4 text-white" />
+                            </div>
+                          )}
+                          <button
+                            onClick={handleMeshRemoved}
+                            disabled={mesh.isUploading}
+                            className={cn(
+                              'absolute right-[-0.50rem] top-[-0.50rem] rounded-full border border-adam-neutral-500 bg-adam-neutral-500 text-white transition-colors duration-200 hover:border-adam-neutral-700 hover:bg-adam-neutral-700',
+                              mesh.isUploading && 'opacity-50',
+                            )}
+                          >
+                            <CircleX className="h-4 w-4 stroke-[1.5]" />
+                          </button>
+                        </motion.div>
+                      )}
+                      {images.map((image) => (
+                        <motion.div
+                          key={`image-${image.id}`}
+                          className="relative h-12 w-12 flex-shrink-0"
+                          variants={itemAnimationVariants}
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                          layout
+                        >
                           <img
-                            src={mesh.url}
-                            alt="Mesh"
+                            src={image.url}
+                            alt="Image"
                             className="h-12 w-12 rounded-md object-cover"
                           />
-                        )}
-                        {mesh.isUploading && (
-                          <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/50">
-                            <Loader2 className="h-4 w-4 animate-spin text-white" />
-                          </div>
-                        )}
-                        {!mesh.isUploading && (
-                          <div className="absolute bottom-[-0.50rem] right-[-0.50rem] rounded-full border border-adam-neutral-500 bg-adam-neutral-500 text-white transition-colors duration-200 hover:border-adam-neutral-700 hover:bg-adam-neutral-700">
-                            <Box className="h-4 w-4 text-white" />
-                          </div>
-                        )}
-                        <button
-                          onClick={handleMeshRemoved}
-                          disabled={mesh.isUploading}
-                          className={cn(
-                            'absolute right-[-0.50rem] top-[-0.50rem] rounded-full border border-adam-neutral-500 bg-adam-neutral-500 text-white transition-colors duration-200 hover:border-adam-neutral-700 hover:bg-adam-neutral-700',
-                            mesh.isUploading && 'opacity-50',
+                          {image.isUploading && (
+                            <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/50">
+                              <Loader2 className="h-4 w-4 animate-spin text-white" />
+                            </div>
                           )}
-                        >
-                          <CircleX className="h-4 w-4 stroke-[1.5]" />
-                        </button>
-                      </motion.div>
-                    )}
-                    {images.map((image) => (
-                      <motion.div
-                        key={`image-${image.id}`}
-                        className="relative h-12 w-12 flex-shrink-0"
-                        variants={itemAnimationVariants}
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
-                        layout
-                      >
-                        <img
-                          src={image.url}
-                          alt="Image"
-                          className="h-12 w-12 rounded-md object-cover"
-                        />
-                        {image.isUploading && (
-                          <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/50">
-                            <Loader2 className="h-4 w-4 animate-spin text-white" />
-                          </div>
-                        )}
-                        <button
-                          onClick={() => handleImageRemoved(image)}
-                          disabled={image.isUploading}
-                          className={cn(
-                            'absolute right-[-0.50rem] top-[-0.50rem] rounded-full border border-adam-neutral-500 bg-adam-neutral-500 text-white transition-colors duration-200 hover:border-adam-neutral-700 hover:bg-adam-neutral-700',
-                            image.isUploading && 'opacity-50',
-                          )}
-                        >
-                          <CircleX className="h-4 w-4 stroke-[1.5]" />
-                        </button>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              )
+                          <button
+                            onClick={() => handleImageRemoved(image)}
+                            disabled={image.isUploading}
+                            className={cn(
+                              'absolute right-[-0.50rem] top-[-0.50rem] rounded-full border border-adam-neutral-500 bg-adam-neutral-500 text-white transition-colors duration-200 hover:border-adam-neutral-700 hover:bg-adam-neutral-700',
+                              image.isUploading && 'opacity-50',
+                            )}
+                          >
+                            <CircleX className="h-4 w-4 stroke-[1.5]" />
+                          </button>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </div>
             )}
           </>
         )}
@@ -1613,35 +1720,42 @@ function TextAreaChat({
         </div>
         <div className="flex items-center justify-between border-t border-[#2a2a2a] p-3">
           <div className="flex items-center gap-1">
-            {(type !== 'parametric' ||
-              parametricModelSupportsVision(model, models)) && (
-              <div
-                className={cn(
-                  'transition-all duration-300 ease-out',
-                  'pointer-events-auto scale-100 opacity-100',
-                )}
-              >
-                <Button
-                  variant="outline"
-                  className="flex h-8 w-8 items-center gap-2 rounded-lg border border-[#2a2a2a] bg-adam-background-2 p-0 text-sm text-adam-text-secondary hover:bg-adam-bg-secondary-dark"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = `${VALID_IMAGE_FORMATS.join(', ')}, ${
-                      type === 'creative'
-                        ? SUPPORTED_MESH_EXTENSIONS.join(', ')
-                        : '.stl'
-                    }`;
-                    input.onchange = () => handleItemsChange(input.files);
-                    input.click();
-                  }}
-                  disabled={disabled}
-                >
-                  <ImagePlus className="h-5 w-5" />
-                </Button>
-              </div>
-            )}
+            <div
+              className={cn(
+                'transition-all duration-300 ease-out',
+                'pointer-events-auto scale-100 opacity-100',
+              )}
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="flex h-8 w-8 items-center gap-2 rounded-lg border border-[#2a2a2a] bg-adam-background-2 p-0 text-sm text-adam-text-secondary hover:bg-adam-bg-secondary-dark"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = `${VALID_IMAGE_FORMATS.join(', ')}, ${
+                        type === 'creative'
+                          ? SUPPORTED_MESH_EXTENSIONS.join(', ') +
+                            ', .step, .stp, .iges, .igs'
+                          : '.step, .stp, .iges, .igs, .stl'
+                      }`;
+                      input.onchange = () => handleItemsChange(input.files);
+                      input.click();
+                    }}
+                    disabled={disabled}
+                    aria-label="Attach file or CAD reference model"
+                  >
+                    <ImagePlus className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Attach image or CAD reference model (.step, .stp, .iges, .igs,
+                  .stl)
+                </TooltipContent>
+              </Tooltip>
+            </div>
 
             {/* Creative mode toggle button */}
             {onTypeChange && (
