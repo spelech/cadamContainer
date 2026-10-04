@@ -627,6 +627,7 @@ function ConversationEditor() {
   return (
     <ConversationView
       hasParameters={hasArtifact}
+      isChatStreaming={isChatStreaming}
       mobilePreviewKey={
         activePreview
           ? activePreview.type === 'artifact'

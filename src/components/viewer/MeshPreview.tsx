@@ -5,7 +5,13 @@ import {
   PerspectiveCamera,
 } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
-import { Download, Frown, HeartCrack, ChevronDown } from 'lucide-react';
+import {
+  Download,
+  Frown,
+  HeartCrack,
+  ChevronDown,
+  Loader2,
+} from 'lucide-react';
 import { Suspense, useCallback, useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTF, GLTFLoader, GLTFParser } from 'three-stdlib';
@@ -922,12 +928,21 @@ export function MeshPreview({ meshId }: { meshId: string }) {
   );
 }
 
-function MeshPreviewPending({ meshId }: { meshId: string }) {
+export function MeshPreviewPending({ meshId }: { meshId: string }) {
   const { data: previewBlob } = useGlbPreview({ id: meshId });
   return (
-    <div className="flex h-full w-full items-center justify-center bg-[#3B3B3B]">
+    <div className="relative flex h-full w-full items-center justify-center bg-[#3B3B3B]">
       <div className="h-full w-full">
         <GlbPreview glbBlob={previewBlob ?? undefined} />
+      </div>
+      <div className="pointer-events-none absolute left-4 top-4 z-10 flex items-center gap-2.5 rounded-full border border-adam-neutral-700 bg-adam-neutral-900/90 px-3.5 py-1.5 text-xs text-adam-text-primary shadow-lg backdrop-blur-md">
+        <Loader2 className="h-4 w-4 animate-spin text-adam-blue" />
+        <div className="flex flex-col">
+          <span className="font-medium text-white">Generating 3D mesh...</span>
+          <span className="text-[10px] text-adam-neutral-400">
+            Synthesizing geometry and textures
+          </span>
+        </div>
       </div>
     </div>
   );

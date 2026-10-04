@@ -9,8 +9,8 @@ import { Separator } from '@/components/ui/separator';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import * as SheetPrimitive from '@radix-ui/react-dialog';
-import { ChevronsRight } from 'lucide-react';
-import {
+import { ChevronsRight, Box, Loader2 } from 'lucide-react';
+import React, {
   type ReactNode,
   type TouchEvent,
   useCallback,
@@ -42,6 +42,7 @@ interface ConversationViewProps {
   mobileParametersSlot?: ReactNode;
   mobilePreviewKey?: string | null;
   mobilePreviewVersion?: number;
+  isChatStreaming?: boolean;
   /**
    * Drives the right-hand parameters panel: when false the panel collapses to
    * 0 and its resize handle stays inert. Editor uses this to show parameters
@@ -71,6 +72,7 @@ export function ConversationView({
   mobileParametersSlot,
   mobilePreviewKey = null,
   mobilePreviewVersion = 0,
+  isChatStreaming = false,
   hasParameters,
 }: ConversationViewProps) {
   const chatPanelRef = useRef<ImperativePanelHandle>(null);
@@ -239,6 +241,33 @@ export function ConversationView({
         <div className="flex h-full min-w-0 flex-col items-center bg-adam-bg-secondary-dark">
           {chatPanelSlot}
         </div>
+
+        {isChatStreaming && !isMobilePreviewOpen && (
+          <div
+            className="pointer-events-none fixed left-1/2 top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-40 -translate-x-1/2 duration-200 animate-in fade-in slide-in-from-top-2"
+            data-testid="mobile-generating-pill"
+          >
+            <div className="flex items-center gap-2 rounded-full border border-adam-blue/40 bg-adam-neutral-900/95 px-3.5 py-1.5 shadow-xl backdrop-blur-md">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-adam-blue" />
+              <span className="text-xs font-medium text-adam-blue">
+                Adam is generating...
+              </span>
+            </div>
+          </div>
+        )}
+
+        {!!mobilePreviewKey && !isMobilePreviewOpen && (
+          <button
+            type="button"
+            onClick={() => handleMobilePreviewOpenChange(true)}
+            className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] right-4 z-40 flex items-center gap-1.5 rounded-full border border-adam-neutral-700 bg-adam-neutral-900/95 px-3.5 py-2 text-xs font-medium text-adam-text-primary shadow-xl backdrop-blur-md transition-all hover:bg-adam-neutral-800 active:scale-95"
+            aria-label="View 3D model"
+            data-testid="mobile-view-3d-button"
+          >
+            <Box className="h-4 w-4 text-adam-blue" />
+            <span>View 3D</span>
+          </button>
+        )}
 
         <Sheet
           open={!!mobilePreviewKey && isMobilePreviewOpen}

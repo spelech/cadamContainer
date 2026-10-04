@@ -3,6 +3,7 @@ import { SuggestionPills } from '@/components/chat/SuggestionPills';
 import { LimitReachedMessage } from '@/components/LimitReachedMessage';
 import TextAreaChat from '@/components/TextAreaChat';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCachedAiChat } from '@/hooks/useCachedAiChat';
 import { useToast } from '@/hooks/use-toast';
@@ -39,7 +40,7 @@ import type {
 } from '@shared/types';
 import { useQueryClient } from '@tanstack/react-query';
 import posthog from 'posthog-js';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 
 interface ChatSessionProps {
   conversation: Conversation;
@@ -967,11 +968,20 @@ export function ChatSession({
   // them back down.
   // ───────────────────────────────────────────────────────────────────────
   const scrollRef = useRef<HTMLDivElement>(null);
+  const prevIsLoadingRef = useRef(isLoading);
   useEffect(() => {
-    const viewport = scrollRef.current?.querySelector(
+    const viewport = scrollRef.current?.querySelector<HTMLElement>(
       '[data-radix-scroll-area-viewport]',
     );
-    if (viewport) viewport.scrollTop = viewport.scrollHeight;
+    if (!viewport) return;
+    const justStartedLoading = isLoading && !prevIsLoadingRef.current;
+    prevIsLoadingRef.current = isLoading;
+
+    const isNearBottom =
+      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 80;
+    if (isNearBottom || justStartedLoading) {
+      viewport.scrollTop = viewport.scrollHeight;
+    }
   }, [branchNodes, isLoading]);
 
   return (
@@ -1015,6 +1025,11 @@ export function ChatSession({
               />
             );
           })}
+          {isLoading &&
+            (branchNodes.length === 0 ||
+              branchNodes[branchNodes.length - 1].role === 'user') && (
+              <AssistantLoadingBubble type={conversation.type} />
+            )}
         </div>
       </ScrollArea>
 
@@ -1107,4 +1122,46 @@ function findLatestPreview(messages: AppUIMessage[]): LatestPreview {
     }
   }
   return null;
+}
+
+export function AssistantLoadingBubble({
+  type,
+}: {
+  type?: 'parametric' | 'creative';
+}) {
+  const isMesh = type === 'creative';
+  const label = isMesh ? 'Generating 3D mesh...' : 'Generating with Adam...';
+
+  return (
+    <div
+      className="flex min-w-0 max-w-full justify-start overflow-hidden duration-300 animate-in fade-in"
+      data-testid="assistant-loading-bubble"
+    >
+      <div className="mr-2 mt-1 shrink-0">
+        <Avatar className="h-9 w-9 border border-adam-neutral-700 bg-adam-neutral-950">
+          <div style={{ padding: '0.6rem 0.5rem 0.5rem 0.55rem' }}>
+            <AvatarImage
+              src={`${import.meta.env?.BASE_URL ?? ''}/adam-logo.svg`}
+              alt="Adam"
+            />
+          </div>
+        </Avatar>
+      </div>
+      <div className="flex min-w-0 max-w-[calc(100%-3rem)] flex-1 flex-col gap-2">
+        <div className="flex items-center gap-1.5 px-0.5 text-xs text-adam-text-secondary">
+          <span className="font-semibold text-adam-text-primary">Adam</span>
+        </div>
+        <div className="flex w-fit items-center gap-2 rounded-xl border border-adam-neutral-700 bg-adam-neutral-900 px-3.5 py-2.5 text-sm text-adam-text-secondary shadow-sm">
+          <span className="flex items-center gap-1">
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-adam-blue [animation-delay:-0.3s]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-adam-blue [animation-delay:-0.15s]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-adam-blue" />
+          </span>
+          <span className="text-xs font-medium text-adam-neutral-300">
+            {label}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 }

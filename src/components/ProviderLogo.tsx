@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import type React from 'react';
+import React from 'react';
 
 /**
  * Monochrome provider marks for the model pickers. Each renders in
