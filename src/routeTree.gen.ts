@@ -17,6 +17,7 @@ import { Route as SigninRouteImport } from './routes/signin';
 import { Route as ResetPasswordRouteImport } from './routes/reset-password';
 import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy';
 import { Route as ConfirmEmailRouteImport } from './routes/confirm-email';
+import { Route as ChatRouteImport } from './routes/chat';
 import { Route as LayoutRouteImport } from './routes/_layout';
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index';
 import { Route as AssetsSplatRouteImport } from './routes/assets.$';
@@ -88,6 +89,11 @@ const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
 const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
   id: '/confirm-email',
   path: '/confirm-email',
+  getParentRoute: () => rootRouteImport,
+} as any);
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
   getParentRoute: () => rootRouteImport,
 } as any);
 const LayoutRoute = LayoutRouteImport.update({
@@ -252,6 +258,7 @@ const LayoutAuthEditorIdRoute = LayoutAuthEditorIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof LayoutIndexRoute;
+  '/chat': typeof ChatRoute;
   '/confirm-email': typeof ConfirmEmailRoute;
   '/privacy-policy': typeof PrivacyPolicyRoute;
   '/reset-password': typeof ResetPasswordRoute;
@@ -291,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute;
 }
 export interface FileRoutesByTo {
+  '/chat': typeof ChatRoute;
   '/confirm-email': typeof ConfirmEmailRoute;
   '/privacy-policy': typeof PrivacyPolicyRoute;
   '/reset-password': typeof ResetPasswordRoute;
@@ -333,6 +341,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   '/_layout': typeof LayoutRouteWithChildren;
+  '/chat': typeof ChatRoute;
   '/confirm-email': typeof ConfirmEmailRoute;
   '/privacy-policy': typeof PrivacyPolicyRoute;
   '/reset-password': typeof ResetPasswordRoute;
@@ -377,6 +386,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
     | '/'
+    | '/chat'
     | '/confirm-email'
     | '/privacy-policy'
     | '/reset-password'
@@ -416,6 +426,7 @@ export interface FileRouteTypes {
     | '/api/internal/account/delete';
   fileRoutesByTo: FileRoutesByTo;
   to:
+    | '/chat'
     | '/confirm-email'
     | '/privacy-policy'
     | '/reset-password'
@@ -457,6 +468,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_layout'
+    | '/chat'
     | '/confirm-email'
     | '/privacy-policy'
     | '/reset-password'
@@ -500,6 +512,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   LayoutRoute: typeof LayoutRouteWithChildren;
+  ChatRoute: typeof ChatRoute;
   ConfirmEmailRoute: typeof ConfirmEmailRoute;
   PrivacyPolicyRoute: typeof PrivacyPolicyRoute;
   ResetPasswordRoute: typeof ResetPasswordRoute;
@@ -588,6 +601,13 @@ declare module '@tanstack/react-router' {
       path: '/confirm-email';
       fullPath: '/confirm-email';
       preLoaderRoute: typeof ConfirmEmailRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/chat': {
+      id: '/chat';
+      path: '/chat';
+      fullPath: '/chat';
+      preLoaderRoute: typeof ChatRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     '/_layout': {
@@ -865,6 +885,7 @@ const ApiConversationsRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   LayoutRoute: LayoutRouteWithChildren,
+  ChatRoute: ChatRoute,
   ConfirmEmailRoute: ConfirmEmailRoute,
   PrivacyPolicyRoute: PrivacyPolicyRoute,
   ResetPasswordRoute: ResetPasswordRoute,

@@ -530,157 +530,190 @@ function AssistantBubble({
             </>
           )}
         </div>
-        {message.parts.map((part, index) => {
-          if (part.type === 'text') {
-            if (
-              conversation.type === 'parametric' &&
-              lastParametricBuildIndex !== -1
-            ) {
-              return null;
-            }
-            const visibleText = cleanAssistantText(part.text);
-            if (hasAnswerUserMessage || !visibleText) {
-              return null;
-            }
-            return (
-              <div
-                key={index}
-                className="chat-markdown min-w-0 max-w-full overflow-hidden rounded-lg bg-adam-neutral-800 px-3 py-2 text-sm text-adam-text-primary"
-              >
-                <Streamdown parseIncompleteMarkdown>{visibleText}</Streamdown>
-              </div>
-            );
-          }
-
-          if (part.type === 'reasoning') {
-            if (!part.text) return null;
-            // CADAM-tailored wrapper around ai-elements' Reasoning primitive
-            // — adds a capped-height scroll body with auto-pin-to-bottom
-            // while the model is still streaming reasoning tokens.
-            return (
-              <ChatReasoning
-                key={index}
-                text={part.text}
-                isStreaming={part.state === 'streaming'}
-              />
-            );
-          }
-
-          if (part.type === 'tool-build_parametric_model') {
-            if (index !== lastParametricBuildIndex) return null;
-            const artifact =
-              part.state !== 'input-streaming' &&
-              isParametricArtifact(part.input)
-                ? part.input
-                : undefined;
-            // While the model is mid-stream, render the SCAD code in a
-            // typewriter-style block so the user sees something happening
-            // (matches legacy AssistantMessage's StreamingCodeBlock branch).
-            // `part.input` is a partial object during streaming — pull off
-            // whatever `code` has arrived so far.
-            const partialCode =
-              part.state === 'input-streaming'
-                ? (getStringField(part.input, 'code') ?? '')
-                : '';
-            if (part.state === 'input-streaming') {
+        {(() => {
+          let hasRenderedPart = false;
+          const rendered = message.parts.map((part, index) => {
+            if (part.type === 'text') {
+              if (
+                conversation.type === 'parametric' &&
+                lastParametricBuildIndex !== -1
+              ) {
+                return null;
+              }
+              const visibleText = cleanAssistantText(part.text);
+              if (hasAnswerUserMessage || !visibleText) {
+                return null;
+              }
+              hasRenderedPart = true;
               return (
-                <StreamingCodeBlock
+                <div
                   key={index}
-                  code={partialCode}
-                  isStreaming={true}
+                  className="chat-markdown min-w-0 max-w-full overflow-hidden rounded-lg bg-adam-neutral-800 px-3 py-2 text-sm text-adam-text-primary"
+                >
+                  <Streamdown parseIncompleteMarkdown>{visibleText}</Streamdown>
+                </div>
+              );
+            }
+
+            if (part.type === 'reasoning') {
+              if (!part.text) return null;
+              hasRenderedPart = true;
+              // CADAM-tailored wrapper around ai-elements' Reasoning primitive
+              // — adds a capped-height scroll body with auto-pin-to-bottom
+              // while the model is still streaming reasoning tokens.
+              return (
+                <ChatReasoning
+                  key={index}
+                  text={part.text}
+                  isStreaming={part.state === 'streaming'}
                 />
               );
             }
 
-            const isOpen = expandedTools.has(index);
-            // Once the tool's compile finishes (`output-available`), the
-            // canonical preview at `images/{user}/{conv}/preview-{toolCallId}`
-            // is either already uploaded (happy path) or about to be
-            // generated client-side by `usePreview` — either way the
-            // thumbnail keys off `toolCallId` and the artifact's `code`.
-            const showThumbnail =
-              index === lastParametricBuildIndex &&
-              part.state === 'output-available' &&
-              !!artifact;
-            return (
-              <ToolBlock
-                key={index}
-                icon={<Box className="h-4 w-4" />}
-                title={
-                  part.state === 'output-error'
-                    ? 'CAD generation failed'
-                    : artifact
-                      ? artifact.title
-                      : 'Building CAD...'
-                }
-                loading={part.state === 'input-available'}
-                expanded={isOpen}
-                onToggle={() => toggleTool(index)}
-                onPrimary={
-                  artifact ? () => onViewArtifact?.(artifact) : undefined
-                }
-                previewBody={
-                  showThumbnail && artifact ? (
-                    <button
-                      type="button"
-                      className="block w-full"
-                      onClick={() => onViewArtifact?.(artifact)}
-                    >
-                      <ParametricImagePreview
-                        toolCallId={part.toolCallId}
-                        code={artifact.code}
-                      />
-                    </button>
-                  ) : null
-                }
-              >
-                {part.state === 'output-error' ? (
-                  <div className="border-b border-adam-neutral-700 p-3 text-xs text-red-300">
-                    {part.errorText}
-                  </div>
-                ) : null}
-                {artifact?.code ? (
-                  <ScrollArea className="h-80 w-full">
-                    <pre className="m-0 whitespace-pre-wrap break-words p-3 text-xs text-adam-neutral-200">
-                      <code>{artifact.code}</code>
-                    </pre>
-                  </ScrollArea>
-                ) : null}
-              </ToolBlock>
-            );
-          }
+            if (part.type === 'tool-build_parametric_model') {
+              if (index !== lastParametricBuildIndex) return null;
+              const artifact =
+                part.state !== 'input-streaming' &&
+                isParametricArtifact(part.input)
+                  ? part.input
+                  : undefined;
+              // While the model is mid-stream, render the SCAD code in a
+              // typewriter-style block so the user sees something happening
+              // (matches legacy AssistantMessage's StreamingCodeBlock branch).
+              // `part.input` is a partial object during streaming — pull off
+              // whatever `code` has arrived so far.
+              const partialCode =
+                part.state === 'input-streaming'
+                  ? (getStringField(part.input, 'code') ?? '')
+                  : '';
+              if (part.state === 'input-streaming') {
+                hasRenderedPart = true;
+                return (
+                  <StreamingCodeBlock
+                    key={index}
+                    code={partialCode}
+                    isStreaming={true}
+                  />
+                );
+              }
 
-          if (part.type === 'tool-answer_user') {
-            const answerMessage = answerUserMessageText(part) ?? '';
-            if (!answerMessage.trim()) return null;
+              const isOpen = expandedTools.has(index);
+              // Once the tool's compile finishes (`output-available`), the
+              // canonical preview at `images/{user}/{conv}/preview-{toolCallId}`
+              // is either already uploaded (happy path) or about to be
+              // generated client-side by `usePreview` — either way the
+              // thumbnail keys off `toolCallId` and the artifact's `code`.
+              const showThumbnail =
+                index === lastParametricBuildIndex &&
+                part.state === 'output-available' &&
+                !!artifact;
+              hasRenderedPart = true;
+              return (
+                <ToolBlock
+                  key={index}
+                  icon={<Box className="h-4 w-4" />}
+                  title={
+                    part.state === 'output-error'
+                      ? 'CAD generation failed'
+                      : artifact
+                        ? artifact.title
+                        : 'Building CAD...'
+                  }
+                  loading={part.state === 'input-available'}
+                  expanded={isOpen}
+                  onToggle={() => toggleTool(index)}
+                  onPrimary={
+                    artifact ? () => onViewArtifact?.(artifact) : undefined
+                  }
+                  previewBody={
+                    showThumbnail && artifact ? (
+                      <button
+                        type="button"
+                        className="block w-full"
+                        onClick={() => onViewArtifact?.(artifact)}
+                      >
+                        <ParametricImagePreview
+                          toolCallId={part.toolCallId}
+                          code={artifact.code}
+                        />
+                      </button>
+                    ) : null
+                  }
+                >
+                  {part.state === 'output-error' ? (
+                    <div className="border-b border-adam-neutral-700 p-3 text-xs text-red-300">
+                      {part.errorText}
+                    </div>
+                  ) : null}
+                  {artifact?.code ? (
+                    <ScrollArea className="h-80 w-full">
+                      <pre className="m-0 whitespace-pre-wrap break-words p-3 text-xs text-adam-neutral-200">
+                        <code>{artifact.code}</code>
+                      </pre>
+                    </ScrollArea>
+                  ) : null}
+                </ToolBlock>
+              );
+            }
+
+            if (part.type === 'tool-answer_user') {
+              const answerMessage = answerUserMessageText(part) ?? '';
+              if (!answerMessage.trim()) return null;
+              hasRenderedPart = true;
+              return (
+                <div
+                  key={index}
+                  className="chat-markdown min-w-0 max-w-full overflow-hidden rounded-lg bg-adam-neutral-800 px-3 py-2 text-sm text-adam-text-primary"
+                >
+                  <Streamdown parseIncompleteMarkdown>
+                    {answerMessage}
+                  </Streamdown>
+                </div>
+              );
+            }
+
+            if (part.type === 'tool-create_mesh') {
+              hasRenderedPart = true;
+              const output =
+                part.state === 'output-available' ? part.output : undefined;
+              const meshId = output?.id;
+              return (
+                <MeshToolBlock
+                  key={index}
+                  state={part.state}
+                  meshId={meshId}
+                  expanded={expandedTools.has(index)}
+                  onToggle={() => toggleTool(index)}
+                  onViewMesh={onViewMesh}
+                />
+              );
+            }
+
+            return null;
+          });
+
+          if (!hasRenderedPart && isLoading && isLastMessage) {
             return (
               <div
-                key={index}
-                className="chat-markdown min-w-0 max-w-full overflow-hidden rounded-lg bg-adam-neutral-800 px-3 py-2 text-sm text-adam-text-primary"
+                key="loading-fallback"
+                className="flex w-fit items-center gap-2 rounded-xl border border-adam-neutral-700 bg-adam-neutral-900 px-3.5 py-2.5 text-sm text-adam-text-secondary shadow-sm"
               >
-                <Streamdown parseIncompleteMarkdown>{answerMessage}</Streamdown>
+                <span className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-adam-blue [animation-delay:-0.3s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-adam-blue [animation-delay:-0.15s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-adam-blue" />
+                </span>
+                <span className="text-xs font-medium text-adam-neutral-300">
+                  {conversation.type === 'creative'
+                    ? 'Generating 3D mesh...'
+                    : 'Generating with Adam...'}
+                </span>
               </div>
             );
           }
 
-          if (part.type === 'tool-create_mesh') {
-            const output =
-              part.state === 'output-available' ? part.output : undefined;
-            const meshId = output?.id;
-            return (
-              <MeshToolBlock
-                key={index}
-                state={part.state}
-                meshId={meshId}
-                expanded={expandedTools.has(index)}
-                onToggle={() => toggleTool(index)}
-                onViewMesh={onViewMesh}
-              />
-            );
-          }
-
-          return null;
-        })}
+          return rendered;
+        })()}
 
         {/* Suppress the rating/retry/copy/restore strip while the latest
             assistant message is still streaming — those controls don't
