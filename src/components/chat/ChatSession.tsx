@@ -968,11 +968,20 @@ export function ChatSession({
   // them back down.
   // ───────────────────────────────────────────────────────────────────────
   const scrollRef = useRef<HTMLDivElement>(null);
+  const prevIsLoadingRef = useRef(isLoading);
   useEffect(() => {
-    const viewport = scrollRef.current?.querySelector(
+    const viewport = scrollRef.current?.querySelector<HTMLElement>(
       '[data-radix-scroll-area-viewport]',
     );
-    if (viewport) viewport.scrollTop = viewport.scrollHeight;
+    if (!viewport) return;
+    const justStartedLoading = isLoading && !prevIsLoadingRef.current;
+    prevIsLoadingRef.current = isLoading;
+
+    const isNearBottom =
+      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 80;
+    if (isNearBottom || justStartedLoading) {
+      viewport.scrollTop = viewport.scrollHeight;
+    }
   }, [branchNodes, isLoading]);
 
   return (

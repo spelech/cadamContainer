@@ -36,7 +36,6 @@ import {
   isParametricArtifact,
 } from '@shared/parametricParts';
 import { imageIdFromFilename } from '@shared/imageRefs';
-import type React from 'react';
 import {
   Box,
   Check,
@@ -53,7 +52,7 @@ import {
   ThumbsUp,
   X,
 } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Streamdown } from 'streamdown';
 import type { Model } from '@shared/types';
 import type { ModelConfig } from '@/types/misc';
@@ -460,7 +459,7 @@ function AssistantBubble({
               > => p.type === 'text',
             )
             .map((p) => cleanAssistantText(p.text))
-            .filter((visibleText) => !!visibleText)
+            .filter((visibleText) => Boolean(visibleText.trim()))
             .join(''),
     [conversation.type, message.parts, lastParametricBuildIndex],
   );
@@ -506,7 +505,7 @@ function AssistantBubble({
         <Avatar className="h-9 w-9 border border-adam-neutral-700 bg-adam-neutral-950">
           <div style={{ padding: '0.6rem 0.5rem 0.5rem 0.55rem' }}>
             <AvatarImage
-              src={`${import.meta.env.BASE_URL}/adam-logo.svg`}
+              src={`${import.meta.env?.BASE_URL ?? ''}/adam-logo.svg`}
               alt="Adam"
             />
           </div>
@@ -541,7 +540,7 @@ function AssistantBubble({
                 return null;
               }
               const visibleText = cleanAssistantText(part.text);
-              if (hasAnswerUserMessage || !visibleText) {
+              if (hasAnswerUserMessage || !visibleText.trim()) {
                 return null;
               }
               hasRenderedPart = true;

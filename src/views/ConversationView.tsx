@@ -244,7 +244,7 @@ export function ConversationView({
 
         {isChatStreaming && !isMobilePreviewOpen && (
           <div
-            className="pointer-events-none fixed left-1/2 top-14 z-40 -translate-x-1/2 duration-200 animate-in fade-in slide-in-from-top-2"
+            className="pointer-events-none fixed left-1/2 top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-40 -translate-x-1/2 duration-200 animate-in fade-in slide-in-from-top-2"
             data-testid="mobile-generating-pill"
           >
             <div className="flex items-center gap-2 rounded-full border border-adam-blue/40 bg-adam-neutral-900/95 px-3.5 py-1.5 shadow-xl backdrop-blur-md">
@@ -260,7 +260,7 @@ export function ConversationView({
           <button
             type="button"
             onClick={() => handleMobilePreviewOpenChange(true)}
-            className="fixed bottom-24 right-4 z-40 flex items-center gap-1.5 rounded-full border border-adam-neutral-700 bg-adam-neutral-900/95 px-3.5 py-2 text-xs font-medium text-adam-text-primary shadow-xl backdrop-blur-md transition-all hover:bg-adam-neutral-800 active:scale-95"
+            className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] right-4 z-40 flex items-center gap-1.5 rounded-full border border-adam-neutral-700 bg-adam-neutral-900/95 px-3.5 py-2 text-xs font-medium text-adam-text-primary shadow-xl backdrop-blur-md transition-all hover:bg-adam-neutral-800 active:scale-95"
             aria-label="View 3D model"
             data-testid="mobile-view-3d-button"
           >

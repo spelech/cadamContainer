@@ -305,7 +305,7 @@ describe('Live Model End-to-End Test Suite', () => {
               {
                 role: 'system',
                 content:
-                  'You are Adam, an expert mechanical CAD designer. When attached CAD reference models are provided, strictly follow fitment clearance and mating hole locations.',
+                  'You are Adam, an expert mechanical CAD designer. When attached CAD reference models are provided, strictly follow fitment clearance and mating hole locations. Keep internal reasoning concise and call build_parametric_model directly.',
               },
               {
                 role: 'user',
@@ -330,7 +330,7 @@ describe('Live Model End-to-End Test Suite', () => {
               },
             ],
             tool_choice: 'required',
-            max_tokens: 4096,
+            max_tokens: 8192,
           }),
         });
 
@@ -350,13 +350,19 @@ describe('Live Model End-to-End Test Suite', () => {
 
         const args = JSON.parse(buildCall.function.arguments);
         const code = args.code.toLowerCase();
-        // Should declare clearance or reference 31mm / 15.5mm hole spacing
-        assert.ok(
+        // Verify genuine geometric grounding: hole spacing (31mm pitch or 15.5mm offset) and hole cutouts
+        const hasHolePattern =
+          code.includes('31') ||
+          code.includes('15.5') ||
+          (code.includes('hole') && code.includes('cylinder'));
+        const hasClearanceLogic =
           code.includes('clearance') ||
-            code.includes('31') ||
-            code.includes('15.5') ||
-            code.includes('42'),
-          'Generated code references clearance or dimensional grounding features',
+          code.includes('3.') ||
+          code.includes('m3') ||
+          code.includes('fit');
+        assert.ok(
+          hasHolePattern && hasClearanceLogic,
+          'Generated OpenSCAD code applies reference hole spacing and clearance dimensions',
         );
       },
     );
@@ -426,11 +432,11 @@ describe('Live Model End-to-End Test Suite', () => {
     after(async () => {
       if (!conversationId) return;
       try {
-        await new Promise((r) => setTimeout(r, 2000));
         const { query, closePool } = await import('./db.ts');
         await query(`DELETE FROM public.conversations WHERE id = $1`, [
           conversationId,
         ]);
+        await query(`DELETE FROM public.profiles WHERE id = $1`, [testUser.id]);
         await closePool();
       } catch {
         // ignore
@@ -438,7 +444,7 @@ describe('Live Model End-to-End Test Suite', () => {
     });
 
     it(
-      'streams live assistant response with build_parametric_model tool execution',
+      'streams live assistant response with build_parametric_model tool execution and persists message',
       { timeout: 60000 },
       async (t) => {
         if (!config || !isGatewayReachable) {
@@ -448,6 +454,7 @@ describe('Live Model End-to-End Test Suite', () => {
 
         const { signSession, createSessionCookie } = await import('./auth.ts');
         const { handleAiChatRequest } = await import('./aiChat.ts');
+        const { query } = await import('./db.ts');
 
         const token = await signSession(testUser);
         const cookie = createSessionCookie(token);
@@ -480,15 +487,12 @@ describe('Live Model End-to-End Test Suite', () => {
         let streamOutput = '';
         let chunksReceived = 0;
 
+        // Drain stream to completion so onFinish completes DB persistence
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           chunksReceived++;
           streamOutput += decoder.decode(value, { stream: true });
-          // Once we have verified tool-build_parametric_model was streamed, we have full proof of live flow
-          if (streamOutput.includes('build_parametric_model')) {
-            break;
-          }
         }
 
         assert.ok(
@@ -499,6 +503,26 @@ describe('Live Model End-to-End Test Suite', () => {
           streamOutput.includes('build_parametric_model') ||
             streamOutput.includes('tool-'),
           'Live stream contains tool call event',
+        );
+
+        // Verify Database Persistence invariant
+        const msgRes = await query<{ role: string; parts: unknown }>(
+          `SELECT role, parts FROM public.messages WHERE conversation_id = $1 AND role = 'assistant'`,
+          [conversationId],
+        );
+        assert.ok(
+          msgRes.rows.length > 0,
+          'Assistant message was committed to PostgreSQL database',
+        );
+
+        const convRes = await query<{ current_message_leaf_id: string }>(
+          `SELECT current_message_leaf_id FROM public.conversations WHERE id = $1`,
+          [conversationId],
+        );
+        assert.notStrictEqual(
+          convRes.rows[0].current_message_leaf_id,
+          leafMessageId,
+          'Conversation leaf pointer was updated to point to assistant response',
         );
       },
     );
