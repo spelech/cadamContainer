@@ -20,7 +20,7 @@ endsolid cube
 `;
 
 test.describe('CAD Reference Model Attachment & Overlay', () => {
-  test('attaches reference STL and renders feature pill with dimensions', async ({
+  test('attaches reference STL and renders feature pill with exact dimensions and assembly toggle', async ({
     page,
     context,
   }) => {
@@ -50,6 +50,9 @@ test.describe('CAD Reference Model Attachment & Overlay', () => {
     await expect(pill).toBeVisible({ timeout: 10000 });
     await expect(pill).toContainText('mounting_plate.stl');
     await expect(pill).toContainText('STL');
+
+    // Assert computed bounding box dimensions
+    await expect(pill).toContainText('25.0 × 25.0 × 0.0 mm');
 
     // Verify include in assembly checkbox is interactable
     const assemblyCheckbox = pill.locator('input[type="checkbox"]');

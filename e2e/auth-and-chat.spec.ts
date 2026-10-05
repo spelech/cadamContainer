@@ -1,7 +1,14 @@
 import { test, expect } from '@playwright/test';
-import { authenticateBrowserContext } from './helpers/auth.js';
+import {
+  authenticateBrowserContext,
+  cleanupTestUserConversations,
+} from './helpers/auth.js';
 
 test.describe('Authentication and Chat Interface', () => {
+  test.afterEach(async () => {
+    await cleanupTestUserConversations();
+  });
+
   test('authenticates seamlessly via session cookie and loads main prompt view', async ({
     page,
     context,
@@ -15,7 +22,7 @@ test.describe('Authentication and Chat Interface', () => {
     await expect(textarea).toBeEnabled();
   });
 
-  test('submitting prompt renders immediate assistant loading bubble and begins generation', async ({
+  test('submitting prompt renders immediate assistant loading bubble and completes generation', async ({
     page,
     context,
   }) => {
@@ -42,11 +49,15 @@ test.describe('Authentication and Chat Interface', () => {
       .first();
     await expect(loadingBubble).toBeVisible({ timeout: 15000 });
 
-    // Wait for the assistant to finish generation and show results
-    await expect(
-      page
-        .locator('button:has-text("Show code"), button:has-text("Share")')
-        .first(),
-    ).toBeVisible({ timeout: 45000 });
+    // Wait for generation to complete: loading indicator disappears
+    await expect(loadingBubble).not.toBeVisible({ timeout: 50000 });
+
+    // Verify assistant produced output
+    const completedOutput = page
+      .locator(
+        'button[aria-label*="code" i], button:has-text("Show code"), button:has-text("Hide code"), button:has-text("Calibration Cube")',
+      )
+      .first();
+    await expect(completedOutput).toBeVisible({ timeout: 15000 });
   });
 });

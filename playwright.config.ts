@@ -1,7 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
+import { existsSync } from 'node:fs';
 
 const BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8408/cadam';
+
+const defaultChromePath =
+  '/home/steve/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome';
+const executablePath =
+  process.env.CHROME_BIN ||
+  (existsSync(defaultChromePath) ? defaultChromePath : undefined);
 
 export default defineConfig({
   testDir: './e2e',
@@ -19,9 +26,7 @@ export default defineConfig({
     video: 'off',
     headless: true,
     launchOptions: {
-      executablePath:
-        process.env.CHROME_BIN ||
-        '/home/steve/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome',
+      ...(executablePath ? { executablePath } : {}),
       args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
     },
   },

@@ -408,7 +408,7 @@ describe('Multi-Model Live Matrix & Benchmark Test Suite', () => {
           [leafMessageId, conversationId],
         );
 
-        const token = await signSession(testUser);
+        const token = signSession(testUser);
         const cookie = createSessionCookie(token);
 
         const req = new Request('http://localhost:3000/api/ai/chat', {

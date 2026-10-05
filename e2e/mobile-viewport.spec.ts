@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { authenticateBrowserContext } from './helpers/auth.js';
+import {
+  authenticateBrowserContext,
+  cleanupTestUserConversations,
+} from './helpers/auth.js';
 
 test.describe('Mobile Viewport & Responsive Layout', () => {
   test.use({
@@ -8,7 +11,11 @@ test.describe('Mobile Viewport & Responsive Layout', () => {
     hasTouch: true,
   });
 
-  test('renders responsive mobile chat layout and shows floating generation pill on submit', async ({
+  test.afterEach(async () => {
+    await cleanupTestUserConversations();
+  });
+
+  test('renders responsive mobile chat layout, shows generation pill, and manages 3D preview sheet', async ({
     page,
     context,
   }) => {
@@ -23,10 +30,27 @@ test.describe('Mobile Viewport & Responsive Layout', () => {
     const submitBtn = page.locator('button:has(svg.lucide-arrow-up)').first();
     await submitBtn.click();
 
-    // Check that either the mobile generating pill or assistant loading bubble is displayed
+    // Check that the generation indicator appears on mobile
     const mobileIndicator = page.locator(
       '[data-testid="mobile-generating-pill"], [data-testid="assistant-loading-bubble"]',
     );
     await expect(mobileIndicator.first()).toBeVisible({ timeout: 15000 });
+
+    // The mobile preview sheet automatically opens with the generated model
+    const mobileSheet = page.locator('[role="dialog"], [data-state="open"]');
+    await expect(mobileSheet.first()).toBeVisible({ timeout: 45000 });
+
+    // Closing the sheet reveals the floating View 3D button
+    const closeBtn = page
+      .locator(
+        'button[aria-label="Close preview"], button:has-text("Close preview")',
+      )
+      .first();
+    await expect(closeBtn).toBeVisible({ timeout: 10000 });
+    await closeBtn.click();
+
+    // The floating View 3D button is now visible
+    const view3dBtn = page.locator('[data-testid="mobile-view-3d-button"]');
+    await expect(view3dBtn).toBeVisible({ timeout: 10000 });
   });
 });

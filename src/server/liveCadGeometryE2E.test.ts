@@ -100,6 +100,44 @@ const PARAMETRIC_TOOL_DEF = {
   },
 };
 
+export function validateOpenScadSyntax(code: string): {
+  valid: boolean;
+  error?: string;
+} {
+  if (!code || typeof code !== 'string')
+    return { valid: false, error: 'Empty code' };
+  if (code.includes('```'))
+    return { valid: false, error: 'Leaked markdown code fence' };
+
+  // Strip block comments, line comments, and string literals before balancing delimiters
+  const cleanCode = code
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '')
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""');
+
+  let braces = 0;
+  let parens = 0;
+  let brackets = 0;
+  for (const char of cleanCode) {
+    if (char === '{') braces++;
+    if (char === '}') braces--;
+    if (char === '(') parens++;
+    if (char === ')') parens--;
+    if (char === '[') brackets++;
+    if (char === ']') brackets--;
+    if (braces < 0 || parens < 0 || brackets < 0) {
+      return { valid: false, error: 'Unbalanced closing delimiter' };
+    }
+  }
+  if (braces !== 0 || parens !== 0 || brackets !== 0) {
+    return {
+      valid: false,
+      error: `Unbalanced delimiters: braces=${braces}, parens=${parens}, brackets=${brackets}`,
+    };
+  }
+  return { valid: true };
+}
+
 describe('Complex Mechanical Geometry & Multimodal CAD Live Tests', () => {
   let isGatewayReachable = false;
 
@@ -149,7 +187,8 @@ describe('Complex Mechanical Geometry & Multimodal CAD Live Tests', () => {
           ],
           tools: [PARAMETRIC_TOOL_DEF],
           tool_choice: 'required',
-          max_tokens: 8192,
+          max_tokens: 16384,
+          reasoning: { effort: 'low' },
         }),
       });
 
@@ -162,6 +201,10 @@ describe('Complex Mechanical Geometry & Multimodal CAD Live Tests', () => {
 
       const args = JSON.parse(toolCall.function.arguments);
       assert.ok(args.code, 'Tool call contains OpenSCAD code');
+
+      const syntax = validateOpenScadSyntax(args.code);
+      assert.ok(syntax.valid, `OpenSCAD syntax valid: ${syntax.error}`);
+
       const code = args.code.toLowerCase();
 
       // Verify M6 thread geometry keywords
@@ -171,9 +214,10 @@ describe('Complex Mechanical Geometry & Multimodal CAD Live Tests', () => {
         code.includes('6.0') ||
         code.includes('thread');
       const hasHexHead =
+        code.includes('$fn=6') ||
+        code.includes('$fn = 6') ||
         code.includes('hex') ||
-        (code.includes('cylinder') &&
-          (code.includes('6') || code.includes('10')));
+        /cylinder\s*\([^)]*\$fn\s*=\s*6/i.test(code);
       const hasClearance =
         code.includes('clearance') ||
         code.includes('tolerance') ||
@@ -220,7 +264,8 @@ describe('Complex Mechanical Geometry & Multimodal CAD Live Tests', () => {
           ],
           tools: [PARAMETRIC_TOOL_DEF],
           tool_choice: 'required',
-          max_tokens: 8192,
+          max_tokens: 16384,
+          reasoning: { effort: 'low' },
         }),
       });
 
@@ -232,6 +277,8 @@ describe('Complex Mechanical Geometry & Multimodal CAD Live Tests', () => {
       assert.ok(toolCall, 'Invoked build_parametric_model tool');
 
       const args = JSON.parse(toolCall.function.arguments);
+      const syntax = validateOpenScadSyntax(args.code);
+      assert.ok(syntax.valid, `OpenSCAD syntax valid: ${syntax.error}`);
       const code = args.code.toLowerCase();
 
       // Assert standoffs, wall thickness, usb cutout, snap fit
@@ -285,7 +332,8 @@ describe('Complex Mechanical Geometry & Multimodal CAD Live Tests', () => {
           ],
           tools: [PARAMETRIC_TOOL_DEF],
           tool_choice: 'required',
-          max_tokens: 8192,
+          max_tokens: 16384,
+          reasoning: { effort: 'low' },
         }),
       });
 
@@ -300,6 +348,8 @@ describe('Complex Mechanical Geometry & Multimodal CAD Live Tests', () => {
       );
 
       const args = JSON.parse(toolCall.function.arguments);
+      const syntax = validateOpenScadSyntax(args.code);
+      assert.ok(syntax.valid, `OpenSCAD syntax valid: ${syntax.error}`);
       const code = args.code.toLowerCase();
 
       // Assert tooth count, module/pitch, shaft bore
@@ -308,7 +358,10 @@ describe('Complex Mechanical Geometry & Multimodal CAD Live Tests', () => {
         code.includes('teeth') ||
         code.includes('num_teeth');
       const hasBore =
-        code.includes('bore') || code.includes('shaft') || code.includes('6');
+        code.includes('bore') ||
+        code.includes('shaft') ||
+        code.includes('d_shaft') ||
+        /cylinder\s*\([^)]*6/i.test(code);
       const hasGearLoop =
         code.includes('for') ||
         code.includes('rotate') ||
@@ -321,7 +374,7 @@ describe('Complex Mechanical Geometry & Multimodal CAD Live Tests', () => {
   );
 
   it(
-    'extracts dimensions and grounds model from multimodal technical drawing image',
+    'accepts multimodal technical blueprint image attachment and generates grounded parametric model',
     { timeout: 90000 },
     async (t) => {
       if (!config || !isGatewayReachable) {
@@ -365,7 +418,8 @@ describe('Complex Mechanical Geometry & Multimodal CAD Live Tests', () => {
           ],
           tools: [PARAMETRIC_TOOL_DEF],
           tool_choice: 'required',
-          max_tokens: 8192,
+          max_tokens: 16384,
+          reasoning: { effort: 'low' },
         }),
       });
 
@@ -380,6 +434,8 @@ describe('Complex Mechanical Geometry & Multimodal CAD Live Tests', () => {
       );
 
       const args = JSON.parse(toolCall.function.arguments);
+      const syntax = validateOpenScadSyntax(args.code);
+      assert.ok(syntax.valid, `OpenSCAD syntax valid: ${syntax.error}`);
       const code = args.code.toLowerCase();
 
       // Assert dimensions from prompt & multimodal diagram

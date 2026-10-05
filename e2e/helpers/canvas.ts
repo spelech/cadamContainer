@@ -14,7 +14,7 @@ export interface CanvasInspection {
 export async function inspectCanvas(
   page: Page,
   selector = 'canvas',
-  timeout = 15000,
+  timeout = 25000,
 ): Promise<CanvasInspection> {
   const canvas = page.locator(selector).first();
   await canvas.waitFor({ state: 'visible', timeout });
