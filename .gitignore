@@ -37,3 +37,6 @@ dist-ssr
 # database volume
 db/
 
+# Playwright test outputs
+test-results/
+playwright-report/

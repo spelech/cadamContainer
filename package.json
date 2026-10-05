@@ -16,6 +16,7 @@
     "test:live": "tsx --test --test-concurrency=1 'src/server/liveModelE2E.test.ts'",
     "test:matrix": "tsx --test --test-concurrency=1 'src/server/liveModelMatrix.test.ts'",
     "test:geometry": "tsx --test --test-concurrency=1 'src/server/liveCadGeometryE2E.test.ts'",
+    "test:e2e": "playwright test",
     "test:all": "tsx --test --test-concurrency=1 'src/**/*.test.ts'",
     "format": "prettier --write .",
     "preview": "vite preview",

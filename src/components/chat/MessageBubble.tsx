@@ -695,6 +695,7 @@ function AssistantBubble({
             return (
               <div
                 key="loading-fallback"
+                data-testid="assistant-loading-bubble"
                 className="flex w-fit items-center gap-2 rounded-xl border border-adam-neutral-700 bg-adam-neutral-900 px-3.5 py-2.5 text-sm text-adam-text-secondary shadow-sm"
               >
                 <span className="flex items-center gap-1">
