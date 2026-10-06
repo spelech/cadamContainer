@@ -34,11 +34,10 @@ export interface MeshChildLike {
       getHexString?: () => string;
     };
   };
-  [key: string]: unknown;
 }
 
 export interface MeshGroupLike {
-  children?: MeshChildLike[];
+  children?: MeshChildLike[] | readonly MeshChildLike[] | unknown[];
 }
 
 export function calculateExplodedOffset(
@@ -66,7 +65,7 @@ export function inferAssemblyFromCodeAndMeshes(
   meshGroup: MeshGroupLike,
   explicitManifest?: AssemblyManifest,
 ): RuntimeAssemblyPart[] {
-  const meshes = meshGroup.children || [];
+  const meshes = (meshGroup.children || []) as MeshChildLike[];
   if (meshes.length === 0) return [];
 
   // Compute centers and triangle counts for each mesh child
