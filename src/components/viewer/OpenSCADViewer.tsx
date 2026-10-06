@@ -17,6 +17,11 @@ import { DxfExporter } from '@/utils/downloadUtils';
 import { useOptionalCadReference } from '@/context/CadReferenceContext';
 import type { CollisionReport } from '@/lib/cadCollisionDetector';
 import { extractImportFilenames } from '@/lib/cadPromptBuilder';
+import {
+  inferAssemblyFromCodeAndMeshes,
+  type RuntimeAssemblyPart,
+  type AssemblyManifest,
+} from '@/utils/assemblyParser';
 
 // Brand-fallback `color` arrives as a CSS hex string (e.g. "#00A6FF") since
 // it's also handed to react-three-fiber's <meshStandardMaterial color>. The
@@ -36,6 +41,12 @@ interface OpenSCADPreviewProps {
   onFixInterference?: (report: CollisionReport) => void;
   isMobile?: boolean;
   backgroundColor?: string;
+  explicitManifest?: AssemblyManifest;
+  assemblyParts?: RuntimeAssemblyPart[];
+  onAssemblyPartsChange?: (parts: RuntimeAssemblyPart[]) => void;
+  explodeFraction?: number;
+  onExplodeFractionChange?: (fraction: number) => void;
+  explodeDistanceMm?: number;
 }
 
 export function OpenSCADPreview({
@@ -47,6 +58,12 @@ export function OpenSCADPreview({
   onFixInterference,
   isMobile,
   backgroundColor,
+  explicitManifest,
+  assemblyParts: propAssemblyParts,
+  onAssemblyPartsChange,
+  explodeFraction: propExplodeFraction,
+  onExplodeFractionChange,
+  explodeDistanceMm,
 }: OpenSCADPreviewProps) {
   const {
     compileScad,
@@ -62,6 +79,29 @@ export function OpenSCADPreview({
   const referenceModel = cadRef?.referenceModel;
   const [geometry, setGeometry] = useState<BufferGeometry | null>(null);
   const [coloredGroup, setColoredGroup] = useState<Group | null>(null);
+  const [internalAssemblyParts, setInternalAssemblyParts] = useState<
+    RuntimeAssemblyPart[]
+  >([]);
+  const [internalExplodeFraction, setInternalExplodeFraction] =
+    useState<number>(0);
+
+  const activeAssemblyParts = propAssemblyParts ?? internalAssemblyParts;
+  const activeExplodeFraction = propExplodeFraction ?? internalExplodeFraction;
+  const effectiveExplodeDistanceMm =
+    explodeDistanceMm ?? explicitManifest?.explodeDistanceMm ?? 40;
+
+  const onAssemblyPartsChangeRef = useRef(onAssemblyPartsChange);
+  useEffect(() => {
+    onAssemblyPartsChangeRef.current = onAssemblyPartsChange;
+  }, [onAssemblyPartsChange]);
+
+  const handleExplodeFractionChange = useCallback(
+    (fraction: number) => {
+      setInternalExplodeFraction(fraction);
+      onExplodeFractionChange?.(fraction);
+    },
+    [onExplodeFractionChange],
+  );
   // Use context directly to avoid throwing if provider is not mounted (e.g. VisualCard)
   const meshFilesCtx = useContext(MeshFilesContext);
   // Track which files we've written to avoid re-writing unchanged blobs
@@ -249,6 +289,23 @@ export function OpenSCADPreview({
     };
   }, []);
 
+  // Infer assembly structure from OpenSCAD code and child meshes
+  useEffect(() => {
+    if (!coloredGroup) {
+      setInternalAssemblyParts([]);
+      onAssemblyPartsChangeRef.current?.([]);
+      return;
+    }
+
+    const parts = inferAssemblyFromCodeAndMeshes(
+      scadCode || '',
+      coloredGroup,
+      explicitManifest,
+    );
+    setInternalAssemblyParts(parts);
+    onAssemblyPartsChangeRef.current?.(parts);
+  }, [coloredGroup, scadCode, explicitManifest]);
+
   return (
     <div className="relative h-full w-full bg-adam-neutral-700/50 transition-all duration-300 ease-in-out">
       <div className="h-full w-full">
@@ -261,6 +318,10 @@ export function OpenSCADPreview({
               isMobile={isMobile}
               backgroundColor={backgroundColor}
               onFixInterference={onFixInterference}
+              assemblyParts={activeAssemblyParts}
+              explodeFraction={activeExplodeFraction}
+              explodeDistanceMm={effectiveExplodeDistanceMm}
+              onExplodeFractionChange={handleExplodeFractionChange}
             />
           </div>
         ) : (

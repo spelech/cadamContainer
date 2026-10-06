@@ -7,7 +7,7 @@ import {
   PerspectiveCamera,
 } from '@react-three/drei';
 import * as THREE from 'three';
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { OrthographicPerspectiveToggle } from '@/components/viewer/OrthographicPerspectiveToggle';
 import { ViewGizmo } from '@/components/viewer/ViewGizmo';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,12 @@ import {
   type CollisionReport,
 } from '@/lib/cadCollisionDetector';
 import { useOptionalCadReference } from '@/context/CadReferenceContext';
+import {
+  applyExplodeTransforms,
+  resetExplodeTransforms,
+} from '@/components/viewer/explodedTransforms';
+import type { RuntimeAssemblyPart } from '@/utils/assemblyParser';
+import { Layers, RotateCcw } from 'lucide-react';
 
 interface ThreeSceneProps {
   geometry: THREE.BufferGeometry | null;
@@ -28,6 +34,10 @@ interface ThreeSceneProps {
   backgroundColor?: string;
   coloredGroup?: THREE.Group | null;
   onFixInterference?: (report: CollisionReport) => void;
+  assemblyParts?: RuntimeAssemblyPart[];
+  explodeFraction?: number;
+  explodeDistanceMm?: number;
+  onExplodeFractionChange?: (fraction: number) => void;
 }
 
 export function ThreeScene({
@@ -37,6 +47,10 @@ export function ThreeScene({
   backgroundColor = '#3B3B3B',
   coloredGroup,
   onFixInterference,
+  assemblyParts,
+  explodeFraction = 0,
+  explodeDistanceMm = 40,
+  onExplodeFractionChange,
 }: ThreeSceneProps) {
   const [isOrthographic, setIsOrthographic] = useState(true);
 
@@ -72,6 +86,20 @@ export function ThreeScene({
     }
     return detectInterference(cadPositions, geometry);
   }, [cadPositions, cadShowCollisions, geometry]);
+
+  // Real-time exploded view transforms (60 FPS pure vector math)
+  useEffect(() => {
+    if (coloredGroup && assemblyParts && assemblyParts.length > 0) {
+      applyExplodeTransforms(
+        coloredGroup,
+        assemblyParts,
+        explodeFraction,
+        explodeDistanceMm,
+      );
+    } else if (coloredGroup) {
+      resetExplodeTransforms(coloredGroup);
+    }
+  }, [coloredGroup, assemblyParts, explodeFraction, explodeDistanceMm]);
 
   return (
     <div className="relative h-full w-full overflow-hidden">
@@ -163,6 +191,56 @@ export function ThreeScene({
         collisionReport={collisionReport}
         onFixInterference={onFixInterference}
       />
+
+      {/* Exploded View HUD */}
+      {coloredGroup && assemblyParts && assemblyParts.length > 1 && (
+        <div
+          data-testid="exploded-view-hud"
+          className={cn(
+            'pointer-events-auto absolute z-20 flex select-none items-center gap-2.5 rounded-xl border border-adam-neutral-700/80 bg-adam-neutral-900/90 px-3 py-2 shadow-2xl backdrop-blur-md transition-all duration-200',
+            initialIsMobile
+              ? 'bottom-2 left-2 max-w-[280px]'
+              : 'bottom-2 left-3',
+          )}
+        >
+          <div className="flex items-center gap-1.5 text-adam-blue">
+            <Layers className="h-4 w-4" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-adam-text-primary">
+              Explode
+            </span>
+          </div>
+          <span className="rounded bg-adam-blue/20 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-adam-blue">
+            {assemblyParts.length} parts
+          </span>
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value={Math.round(explodeFraction * 100)}
+              onChange={(e) =>
+                onExplodeFractionChange?.(Number(e.target.value) / 100)
+              }
+              className="h-1.5 w-24 cursor-pointer appearance-none rounded-lg bg-adam-neutral-700 accent-adam-blue transition-all sm:w-32"
+              aria-label="Exploded View Slider"
+            />
+            <span className="w-8 text-right font-mono text-xs font-medium text-adam-text-secondary">
+              {Math.round(explodeFraction * 100)}%
+            </span>
+          </div>
+          {explodeFraction > 0 && onExplodeFractionChange && (
+            <button
+              type="button"
+              onClick={() => onExplodeFractionChange(0)}
+              title="Reset exploded view"
+              className="flex items-center justify-center rounded-md p-1 text-adam-text-secondary transition-colors hover:bg-adam-neutral-800 hover:text-adam-text-primary"
+            >
+              <RotateCcw className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      )}
 
       <div
         className={cn(
