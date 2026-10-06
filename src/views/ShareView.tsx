@@ -22,7 +22,26 @@ import type {
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 import { Loader2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PartsPanel } from '@/components/assembly/PartsPanel';
+import {
+  togglePartIsolation,
+  togglePartVisibility,
+  isolateScadPart,
+} from '@/components/assembly/assemblyUtils';
+import type { RuntimeAssemblyPart } from '@/utils/assemblyParser';
+import { useOpenSCAD } from '@/hooks/useOpenSCAD';
+import { MeshFilesContext } from '@/contexts/MeshFilesContext';
+import { extractImportFilenames } from '@/lib/cadPromptBuilder';
+import { downloadFile } from '@/utils/downloadUtils';
+import { getSafeFilename } from '@/utils/file-utils';
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { ConversationView } from './ConversationView';
 
 type ActivePreview =
@@ -139,8 +158,60 @@ function ConversationShare({ conversation, messages }: ConversationShareProps) {
   const [activePreview, setActivePreview] = useState<ActivePreview>(null);
   const [parameters, setParameters] = useState<Parameter[]>([]);
   const [currentOutput, setCurrentOutput] = useState<Blob | undefined>();
+  const [assemblyParts, setAssemblyParts] = useState<RuntimeAssemblyPart[]>([]);
+  const [explodeFraction, setExplodeFraction] = useState<number>(0);
+  const [activeSidebarTab, setActiveSidebarTab] = useState<
+    'parameters' | 'assembly'
+  >('parameters');
+  const { exportScad, writeFile } = useOpenSCAD();
+  const meshFilesCtx = useContext(MeshFilesContext);
   const [mobilePreviewVersion, setMobilePreviewVersion] = useState(0);
   const baseCodeRef = useRef<string | null>(null);
+
+  const handleTogglePartVisibility = useCallback((partId: string) => {
+    setAssemblyParts((prev) => togglePartVisibility(partId, prev));
+  }, []);
+
+  const handleTogglePartIsolate = useCallback((partId: string) => {
+    setAssemblyParts((prev) => togglePartIsolation(partId, prev));
+  }, []);
+
+  const handleExportPartStl = useCallback(
+    async (part: RuntimeAssemblyPart) => {
+      if (!activePreview || activePreview.type !== 'artifact') return;
+      try {
+        const rawCode = activePreview.artifact.code;
+        const isolatedCode = isolateScadPart(rawCode, part);
+
+        if (meshFilesCtx) {
+          const importedFiles = extractImportFilenames(isolatedCode);
+          for (const filename of importedFiles) {
+            const content = meshFilesCtx.getMeshFile(filename);
+            if (content) {
+              await writeFile(filename, content);
+              const basename = filename.replace(/^.*[\\/]/, '');
+              if (basename !== filename) {
+                await writeFile(basename, content);
+              }
+            }
+          }
+        }
+
+        const blob = await exportScad(isolatedCode, 'stl');
+        const title =
+          activePreview.artifact.title || conversation.title || 'model';
+        const safeTitle = getSafeFilename(title);
+        downloadFile({
+          content: blob,
+          filename: `${safeTitle}_${part.id}.stl`,
+          mimeType: 'model/stl',
+        });
+      } catch (err) {
+        console.error('[ShareView] Failed to export part STL:', err);
+      }
+    },
+    [activePreview, conversation.title, exportScad, writeFile, meshFilesCtx],
+  );
 
   // Auto-switch the preview pane to the latest artifact / mesh in the
   // current branch when it changes.
@@ -158,6 +229,7 @@ function ConversationShare({ conversation, messages }: ConversationShareProps) {
       baseCodeRef.current = latest.artifact.code;
       setParameters(parseParameters(latest.artifact.code));
       setCurrentOutput(undefined);
+      setExplodeFraction(0);
       setActivePreview({
         type: 'artifact',
         messageId: latest.messageId,
@@ -166,6 +238,8 @@ function ConversationShare({ conversation, messages }: ConversationShareProps) {
       setMobilePreviewVersion((version) => version + 1);
     } else {
       setCurrentOutput(undefined);
+      setExplodeFraction(0);
+      setAssemblyParts([]);
       setActivePreview({
         type: 'mesh',
         messageId: latest.messageId,
@@ -180,6 +254,7 @@ function ConversationShare({ conversation, messages }: ConversationShareProps) {
       baseCodeRef.current = artifact.code;
       setParameters(parseParameters(artifact.code));
       setCurrentOutput(undefined);
+      setExplodeFraction(0);
       setActivePreview({ type: 'artifact', messageId, artifact });
       setMobilePreviewVersion((version) => version + 1);
     },
@@ -187,6 +262,8 @@ function ConversationShare({ conversation, messages }: ConversationShareProps) {
   );
   const handleViewMesh = useCallback((meshId: string, messageId: string) => {
     setCurrentOutput(undefined);
+    setExplodeFraction(0);
+    setAssemblyParts([]);
     setActivePreview({ type: 'mesh', messageId, meshId });
     setMobilePreviewVersion((version) => version + 1);
   }, []);
@@ -269,6 +346,10 @@ function ConversationShare({ conversation, messages }: ConversationShareProps) {
               scadCode={activePreview.artifact.code}
               color="#00A6FF"
               onOutputChange={setCurrentOutput}
+              assemblyParts={assemblyParts}
+              onAssemblyPartsChange={setAssemblyParts}
+              explodeFraction={explodeFraction}
+              onExplodeFractionChange={setExplodeFraction}
             />
           ) : activePreview?.type === 'mesh' ? (
             <MeshPreview meshId={activePreview.meshId} />
@@ -288,6 +369,10 @@ function ConversationShare({ conversation, messages }: ConversationShareProps) {
               onOutputChange={setCurrentOutput}
               isMobile={true}
               backgroundColor="#212121"
+              assemblyParts={assemblyParts}
+              onAssemblyPartsChange={setAssemblyParts}
+              explodeFraction={explodeFraction}
+              onExplodeFractionChange={setExplodeFraction}
             />
           ) : activePreview?.type === 'mesh' ? (
             <MeshPreview meshId={activePreview.meshId} />
@@ -300,7 +385,44 @@ function ConversationShare({ conversation, messages }: ConversationShareProps) {
       }
       parametersSlot={
         <div className="relative h-full">
-          <ParameterSection
+          <PartsPanel
+            parts={assemblyParts}
+            explodeFraction={explodeFraction}
+            onExplodeChange={setExplodeFraction}
+            onToggleVisibility={handleTogglePartVisibility}
+            onToggleIsolate={handleTogglePartIsolate}
+            onExportPartStl={handleExportPartStl}
+            activeTab={activeSidebarTab}
+            onTabChange={setActiveSidebarTab}
+            hasParameters={parameters.length > 0}
+          >
+            <ParameterSection
+              parameters={parameters}
+              onParameterChange={changeParameters}
+              currentOutput={currentOutput}
+              dxfExporter={null}
+              code={
+                activePreview?.type === 'artifact'
+                  ? activePreview.artifact.code
+                  : undefined
+              }
+            />
+          </PartsPanel>
+        </div>
+      }
+      mobileParametersSlot={
+        <PartsPanel
+          parts={assemblyParts}
+          explodeFraction={explodeFraction}
+          onExplodeChange={setExplodeFraction}
+          onToggleVisibility={handleTogglePartVisibility}
+          onToggleIsolate={handleTogglePartIsolate}
+          onExportPartStl={handleExportPartStl}
+          activeTab={activeSidebarTab}
+          onTabChange={setActiveSidebarTab}
+          hasParameters={parameters.length > 0}
+        >
+          <ParameterSheetContent
             parameters={parameters}
             onParameterChange={changeParameters}
             currentOutput={currentOutput}
@@ -311,20 +433,7 @@ function ConversationShare({ conversation, messages }: ConversationShareProps) {
                 : undefined
             }
           />
-        </div>
-      }
-      mobileParametersSlot={
-        <ParameterSheetContent
-          parameters={parameters}
-          onParameterChange={changeParameters}
-          currentOutput={currentOutput}
-          dxfExporter={null}
-          code={
-            activePreview?.type === 'artifact'
-              ? activePreview.artifact.code
-              : undefined
-          }
-        />
+        </PartsPanel>
       }
     />
   );
