@@ -190,6 +190,7 @@ export function PartsPanel({
               </div>
               <input
                 type="range"
+                data-testid="explode-slider"
                 min="0"
                 max="100"
                 step="1"
@@ -222,6 +223,7 @@ export function PartsPanel({
                     <div
                       key={part.id}
                       data-testid="part-item"
+                      data-part-id={part.id}
                       className={cn(
                         'group flex items-center justify-between gap-3 rounded-lg border p-2.5 transition-all',
                         part.isolated
