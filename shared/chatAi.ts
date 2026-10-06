@@ -72,6 +72,26 @@ export const answerUserSchema = z.object({
   message: z.string().min(1),
 });
 
+export const lookupCadDocsInputSchema = z.object({
+  query: z
+    .string()
+    .describe('Function name, primitive, or CAD topic to look up'),
+  library: z.enum(['openscad', 'bosl2', 'all']).default('all'),
+  limit: z.number().min(1).max(5).default(3),
+});
+
+export const lookupCadDocsOutputSchema = z.object({
+  results: z.array(
+    z.object({
+      title: z.string(),
+      snippet: z.string(),
+      source: z.string(),
+      relevanceScore: z.number(),
+      symbol: z.string().optional(),
+    }),
+  ),
+});
+
 export const chatTools = {
   build_parametric_model: tool({
     description:
@@ -90,6 +110,12 @@ export const chatTools = {
       'Create a 3D mesh from text, images, or an existing mesh plus edit instructions.',
     inputSchema: createMeshInputSchema,
     outputSchema: createMeshOutputSchema,
+  }),
+  lookup_cad_docs: tool({
+    description:
+      'Search OpenSCAD and BOSL2 reference documentation, functions, and syntax examples in ContextCortex.',
+    inputSchema: lookupCadDocsInputSchema,
+    outputSchema: lookupCadDocsOutputSchema,
   }),
 };
 

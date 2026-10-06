@@ -44,6 +44,7 @@ import {
   createHeartbeatManager,
   type HeartbeatManager,
 } from './serverHeartbeat';
+import { searchCadDocs } from './cadDocsClient';
 
 export function effortToTokens(effort?: ReasoningEffort): number {
   switch (effort) {
@@ -1141,6 +1142,13 @@ function parametricTools({
       },
     },
     answer_user: chatTools.answer_user,
+    lookup_cad_docs: {
+      ...chatTools.lookup_cad_docs,
+      execute: async (input: AppTools['lookup_cad_docs']['input']) => {
+        const results = await searchCadDocs(input);
+        return { results };
+      },
+    },
   };
 }
 
