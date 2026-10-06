@@ -16,10 +16,43 @@ export const createMeshOutputSchema = z.object({
   fileType: z.enum(['glb', 'stl', 'obj', 'fbx']),
 });
 
+export const assemblyPartSchema = z.object({
+  id: z.string().describe('Unique slug for the part (e.g. "base", "lid")'),
+  name: z
+    .string()
+    .describe('Human-readable display name (e.g. "Main Base", "Snap Lid")'),
+  moduleName: z
+    .string()
+    .optional()
+    .describe('Matching OpenSCAD module name (e.g. "part_base")'),
+  color: z
+    .string()
+    .optional()
+    .describe('Color name or hex string (e.g. "SteelBlue", "#4A5568")'),
+  explodeVector: z
+    .array(z.number())
+    .length(3)
+    .default([0, 0, 1])
+    .describe(
+      'Unit vector [x, y, z] for explosion translation',
+    ) as unknown as z.ZodType<
+    [number, number, number],
+    z.ZodTypeDef,
+    [number, number, number] | number[] | undefined
+  >,
+  description: z.string().optional().describe('Assembly role description'),
+});
+
+export const assemblyManifestSchema = z.object({
+  explodeDistanceMm: z.number().default(40),
+  parts: z.array(assemblyPartSchema).min(1),
+});
+
 export const parametricArtifactSchema = z.object({
   title: z.string().min(1),
   version: z.string().default('v1'),
   code: z.string().min(20),
+  assembly: assemblyManifestSchema.optional(),
 });
 
 export const parametricCompileOutputSchema = z.object({
